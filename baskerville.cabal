@@ -48,7 +48,9 @@ Cabal-version:       >=1.2
 
 Library
   -- Modules exported by the library.
-  Exposed-modules:     Baskerville.Utilities.Geometry
+  Exposed-modules:
+      Baskerville.Utilities.Bits
+      Baskerville.Utilities.Geometry
   
   -- Packages needed in order to build this package.
   Build-depends:       base
