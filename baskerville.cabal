@@ -50,6 +50,7 @@ Library
   -- Modules exported by the library.
   Exposed-modules:
       Baskerville.Utilities.Bits
+      Baskerville.Utilities.Chat
       Baskerville.Utilities.Geometry
   
   -- Packages needed in order to build this package.
