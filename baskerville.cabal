@@ -45,10 +45,16 @@ Build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 Cabal-version:       >=1.2
 
+Executable baskerville
+  Main-is:             Baskerville/Main.hs
+  Build-depends:
+      base,
+      network
 
 Library
   -- Modules exported by the library.
   Exposed-modules:
+      Baskerville.Simplex
       Baskerville.Utilities.Bits
       Baskerville.Utilities.Chat
       Baskerville.Utilities.Geometry
@@ -62,3 +68,5 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
   
+  -- GHC compiler flags.
+  ghc-options:         -Wall
