@@ -1,22 +1,31 @@
 module Main where
 
+import qualified Data.ByteString as BS
 import Control.Concurrent
 import Control.Exception hiding (catch)
 import Control.Monad
 import Network
 import System.IO
-import System.IO.Error
+
+chunk :: Handle -> IO ()
+chunk h = BS.hGetLine h >>= BS.hPutStrLn h
+
+stop :: Handle -> IOError -> IO ()
+stop h e = hClose h
+
+handler :: (Handle, HostName, PortNumber) -> IO ()
+handler (h, _, _) = catch (forever (chunk h >> hFlush h)) (stop h)
 
 -- | Guard an opened socket so that it will always close during cleanup.
 --   This can and should be used in place of listenOn.
+withListenOn :: PortID -> (Socket -> IO a) -> IO a
 withListenOn port = bracket (listenOn port) sClose 
-  
-echo (handle, host, port) = catch (forever doOneLine) stop 
-    where doOneLine = hGetLine handle >>= hPutStrLn handle >> hFlush handle
-          stop error = do
-            putStrLn $ "Closed connection from " ++ show (host, port) ++ " due to " ++ show error
-            hClose handle
 
-main = withSocketsDo $
-    withListenOn (PortNumber 12321) $ \listener ->
-        forever $ accept listener >>= forkIO . echo
+fork :: Socket -> IO ()
+fork sock = forever $ accept sock >>= forkIO . handler
+
+startServer :: IO ()
+startServer = withListenOn (PortNumber 12321) fork
+
+main :: IO ()
+main = withSocketsDo startServer
