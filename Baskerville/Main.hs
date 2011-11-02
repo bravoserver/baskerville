@@ -6,9 +6,13 @@ import Control.Exception hiding (catch)
 import Control.Monad
 import Network
 import System.IO
+import Data.Word
+
+toUpper :: Word8 -> Word8
+toUpper w = if w >= 97 && w <= 122 then w - 32 else w
 
 echo :: BS.ByteString -> BS.ByteString
-echo bs = bs
+echo bs = BS.map toUpper bs
 
 -- | Perform incremental socket chunk handling.
 --   This function reads chunks of up to 4096 bytes at a time from a socket,
