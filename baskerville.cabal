@@ -58,13 +58,16 @@ Executable baskerville
 Library
   -- Modules exported by the library.
   Exposed-modules:
+      Baskerville.Beta.Packets
       Baskerville.Simplex
       Baskerville.Utilities.Bits
       Baskerville.Utilities.Chat
       Baskerville.Utilities.Geometry
 
   -- Packages needed in order to build this package.
-  Build-depends:       base
+  Build-depends:
+      base,
+      attoparsec
 
   -- Modules not exported by this package.
   -- Other-modules:
