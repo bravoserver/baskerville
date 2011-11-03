@@ -67,7 +67,8 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:
       base,
-      attoparsec
+      attoparsec,
+      text
 
   -- Modules not exported by this package.
   -- Other-modules:
