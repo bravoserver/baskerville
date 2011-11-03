@@ -4,7 +4,7 @@ import Prelude hiding (take)
 
 import Data.Attoparsec
 import Data.Bits
-import qualified Data.ByteString as BS
+-- import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
@@ -17,13 +17,12 @@ word16 = let promote a = fromIntegral a :: Word16
         b2 <- anyWord8
         return $ (promote b1 `shiftL` 8) .&. promote b2
 
--- | Notchian string.
-data UCS2 = UCS2 BS.ByteString
-
-str2ucs :: T.Text -> UCS2
-str2ucs s = UCS2 (encodeUtf16BE s)
-ucs2str :: UCS2 -> T.Text
-ucs2str (UCS2 s) = decodeUtf16BE s
+-- | Parse a length-prefixed UCS2 string and return it as a Text.
+ucs2 :: Parser T.Text
+ucs2 = do
+    len <- word16
+    bytes <- take (fromIntegral len * 2)
+    return $ decodeUtf16BE bytes
 
 data Packet = PollPacket
             | ErrorPacket T.Text
@@ -38,7 +37,6 @@ parsePacket = do
 packetBody :: Word8 -> Parser Packet
 packetBody 0xef = return PollPacket
 packetBody 0xff = do
-    len <- word16
-    message <- take (fromIntegral len * 2)
-    return $ ErrorPacket (ucs2str (UCS2 message))
+    message <- ucs2
+    return $ ErrorPacket message
 packetBody _ = return InvalidPacket
