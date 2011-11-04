@@ -15,7 +15,7 @@ word16 = let promote a = fromIntegral a :: Word16
     in do
         b1 <- anyWord8
         b2 <- anyWord8
-        return $ (promote b1 `shiftL` 8) .&. promote b2
+        return $! (promote b1 `shiftL` 8) .|. promote b2
 
 -- | Parse a length-prefixed UCS2 string and return it as a Text.
 ucs2 :: Parser T.Text
@@ -38,5 +38,5 @@ packetBody :: Word8 -> Parser Packet
 packetBody 0xef = return PollPacket
 packetBody 0xff = do
     message <- ucs2
-    return $ ErrorPacket message
+    return $! ErrorPacket message
 packetBody _ = return InvalidPacket
