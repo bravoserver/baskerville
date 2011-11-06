@@ -8,11 +8,16 @@ import Network
 import System.IO
 import Data.Word
 
-toUpper :: Word8 -> Word8
-toUpper w = if w >= 97 && w <= 122 then w - 32 else w
+import Baskerville.Beta.Packets
+
+char2word8 :: Char -> Word8
+char2word8 = toEnum . fromEnum
+
+str2bs :: [Char] -> BS.ByteString
+str2bs s = BS.pack (map char2word8 s)
 
 echo :: BS.ByteString -> BS.ByteString
-echo bs = BS.map toUpper bs
+echo bs = BS.intercalate (BS.pack [0x0d, 0x0a]) (map (str2bs . show) (getPackets bs))
 
 -- | Perform incremental socket chunk handling.
 --   This function reads chunks of up to 4096 bytes at a time from a socket,
