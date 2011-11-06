@@ -53,7 +53,7 @@ Executable baskerville
       network
 
   -- GHC compiler flags.
-  ghc-options:         -Wall
+  ghc-options:         -Wall -rtsopts
 
 Library
   -- Modules exported by the library.
