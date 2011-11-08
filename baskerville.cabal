@@ -50,6 +50,7 @@ Executable baskerville
   Build-depends:
       base,
       bytestring,
+      iterIO,
       network
 
   -- GHC compiler flags.
