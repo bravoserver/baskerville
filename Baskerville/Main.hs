@@ -7,11 +7,25 @@ import Control.Monad
 import Network hiding (accept)
 import Network.Socket (accept)
 import Data.IterIO
+import Data.IterIO.Atto
+import Data.Word
 
 import Baskerville.Beta.Packets
 
-handler :: (Iter BS.ByteString IO (), Onum BS.ByteString IO ()) -> IO ()
-handler (input, output) = output |$ input
+parser :: Iter BS.ByteString IO Packet
+parser = atto parsePacket
+
+char2word8 :: Char -> Word8
+char2word8 = toEnum . fromEnum
+
+str2bs :: [Char] -> BS.ByteString
+str2bs s = BS.pack (map char2word8 s)
+
+handler :: (Iter BS.ByteString IO (), Onum BS.ByteString IO Packet) -> IO ()
+handler (output, input) = do
+    packet <- input |$ parser
+    inumPure (str2bs $ show packet) |$ output
+    return ()
 
 fork :: Socket -> IO ()
 fork listener = forever $ do

@@ -4,7 +4,6 @@ import Prelude hiding (take)
 
 import Data.Attoparsec
 import Data.Bits
-import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
@@ -28,13 +27,6 @@ data Packet = PollPacket
             | ErrorPacket T.Text
             | InvalidPacket
             deriving (Show)
-
-getPackets :: BS.ByteString -> [Packet]
-getPackets bs = case parse parsePacket bs of
-    Fail _ _ error -> []
-    Partial _ -> []
-    Done leftovers packet ->
-        if leftovers == BS.empty then [packet] else packet : getPackets leftovers
 
 parsePacket :: Parser Packet
 parsePacket = do
