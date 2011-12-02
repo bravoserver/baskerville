@@ -3,6 +3,7 @@ module Baskerville.Beta.Packets where
 import Prelude hiding (take)
 
 import Data.Attoparsec
+import Data.Attoparsec.Combinator
 import Data.Bits
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -42,6 +43,9 @@ pUcs2 = do
 -- | Pack a text string into a UCS2 length-prefixed string.
 bUcs2 :: T.Text -> BS.ByteString
 bUcs2 t = BS.append (bWord16 $ T.length t) (encodeUtf16BE t)
+
+parsePackets :: Parser [Packet]
+parsePackets = many1 parsePacket
 
 parsePacket :: Parser Packet
 parsePacket = do

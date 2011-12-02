@@ -13,8 +13,8 @@ import Data.Word
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Protocol
 
-parser :: Monad m => Iter BS.ByteString m Packet
-parser = atto parsePacket
+parser :: Monad m => Iter BS.ByteString m [Packet]
+parser = atto parsePackets
 
 char2word8 :: Char -> Word8
 char2word8 = toEnum . fromEnum
@@ -22,10 +22,10 @@ char2word8 = toEnum . fromEnum
 str2bs :: String -> BS.ByteString
 str2bs s = BS.pack (map char2word8 s)
 
-handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m Packet) -> m ()
+handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m [Packet]) -> m ()
 handler (output, input) = do
-    packet <- input |$ parser
-    inumPure (BS.concat $ map buildPacket (process packet)) |$ output
+    packets <- input |$ parser
+    inumPure (BS.concat $ map buildPacket $ concatMap process packets) |$ output
     return ()
 
 fork :: Socket -> IO ()
