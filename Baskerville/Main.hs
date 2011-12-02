@@ -11,6 +11,7 @@ import Data.IterIO.Atto
 import Data.Word
 
 import Baskerville.Beta.Packets
+import Baskerville.Beta.Protocol
 
 parser :: Monad m => Iter BS.ByteString m Packet
 parser = atto parsePacket
@@ -24,7 +25,7 @@ str2bs s = BS.pack (map char2word8 s)
 handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m Packet) -> m ()
 handler (output, input) = do
     packet <- input |$ parser
-    inumPure (str2bs $ show packet) |$ output
+    inumPure (BS.concat $ map buildPacket (process packet)) |$ output
     return ()
 
 fork :: Socket -> IO ()

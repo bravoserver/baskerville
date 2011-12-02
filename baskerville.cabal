@@ -60,6 +60,7 @@ Library
   -- Modules exported by the library.
   Exposed-modules:
       Baskerville.Beta.Packets
+      Baskerville.Beta.Protocol
       Baskerville.Factory
       Baskerville.Simplex
       Baskerville.Utilities.Bits
