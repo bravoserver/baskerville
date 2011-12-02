@@ -15,7 +15,7 @@ g2 :: Double
 g2 = (3 - sqrt 3) / 6
 
 size = 1024
-p i = [0..1023] !! (mod i 1024)
+p i = [0..1023] !! mod i 1024
 t x y = 0.5 - (x^2) - (y^2)
 
 -- simplex2 :: Num a, Num b, Floating c => a -> b -> b -> c

@@ -19,7 +19,7 @@ parser = atto parsePacket
 char2word8 :: Char -> Word8
 char2word8 = toEnum . fromEnum
 
-str2bs :: [Char] -> BS.ByteString
+str2bs :: String -> BS.ByteString
 str2bs s = BS.pack (map char2word8 s)
 
 handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m Packet) -> m ()

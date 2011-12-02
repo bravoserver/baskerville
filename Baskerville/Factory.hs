@@ -10,10 +10,10 @@ spawnFactory = do
     return $ Factory mv
 
 appendId :: ThreadId -> [ThreadId] -> IO ([ThreadId], ())
-appendId t ts = return $ (t : ts, ())
+appendId t ts = return (t : ts, ())
 
 removeId :: ThreadId -> [ThreadId] -> IO ([ThreadId], ())
-removeId t ts = return $ (filter (\x -> x /= t) ts, ())
+removeId t ts = return (filter (/= t) ts, ())
 
 spawnThread :: Factory -> IO () -> IO ThreadId
 spawnThread (Factory mv) action = do
