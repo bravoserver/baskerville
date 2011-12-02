@@ -12,7 +12,7 @@ import Data.Word
 
 import Baskerville.Beta.Packets
 
-parser :: Iter BS.ByteString IO Packet
+parser :: Monad m => Iter BS.ByteString m Packet
 parser = atto parsePacket
 
 char2word8 :: Char -> Word8
@@ -21,7 +21,7 @@ char2word8 = toEnum . fromEnum
 str2bs :: [Char] -> BS.ByteString
 str2bs s = BS.pack (map char2word8 s)
 
-handler :: (Iter BS.ByteString IO (), Onum BS.ByteString IO Packet) -> IO ()
+handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m Packet) -> m ()
 handler (output, input) = do
     packet <- input |$ parser
     inumPure (str2bs $ show packet) |$ output
