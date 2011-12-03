@@ -8,7 +8,6 @@ import Network hiding (accept)
 import Network.Socket (accept)
 import Data.IterIO
 import Data.IterIO.Atto
-import Data.Word
 
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Protocol
@@ -16,11 +15,18 @@ import Baskerville.Beta.Protocol
 parser :: Monad m => Iter BS.ByteString m [Packet]
 parser = atto parsePackets
 
-char2word8 :: Char -> Word8
-char2word8 = toEnum . fromEnum
+builder :: Monad m => [Packet] -> Onum BS.ByteString m a
+builder packets = enumPure (BS.concat $ map buildPacket packets)
 
-str2bs :: String -> BS.ByteString
-str2bs s = BS.pack (map char2word8 s)
+-- | Repeatedly read in packets, process them, and output them.
+--   Internally holds the state required for a protocol.
+pipeline :: Monad m => Inum BS.ByteString BS.ByteString m a
+pipeline = mkInumAutoM $ loop $ ProtocolState ()
+    where loop ps = do
+            packet <- atto parsePacket
+            let (state, packets) = processPacket ps packet
+            _ <- ifeed $ BS.concat $ map buildPacket packets
+            loop state
 
 handler :: Socket -> (Iter BS.ByteString IO (), Onum BS.ByteString IO [Packet]) -> IO ()
 handler sock (output, input) = do
@@ -29,7 +35,7 @@ handler sock (output, input) = do
     putStrLn "Wired up input..."
     let packetsOut = processPacketStream packetsIn
     putStrLn "Processed packets..."
-    inumPure (BS.concat $ map buildPacket packetsOut) |$ output
+    builder packetsOut |$ output
     putStrLn "Output data..."
     sClose sock
     putStrLn "Closed socket!"
