@@ -22,11 +22,17 @@ char2word8 = toEnum . fromEnum
 str2bs :: String -> BS.ByteString
 str2bs s = BS.pack (map char2word8 s)
 
-handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m [Packet]) -> m ()
-handler (output, input) = do
+handler :: Socket -> (Iter BS.ByteString IO (), Onum BS.ByteString IO [Packet]) -> IO ()
+handler sock (output, input) = do
+    putStrLn "Starting handler..."
     packetsIn <- input |$ parser
+    putStrLn "Wired up input..."
     let packetsOut = processPacketStream packetsIn
+    putStrLn "Processed packets..."
     inumPure (BS.concat $ map buildPacket packetsOut) |$ output
+    putStrLn "Output data..."
+    sClose sock
+    putStrLn "Closed socket!"
     return ()
 
 fork :: Socket -> IO ()
@@ -34,7 +40,7 @@ fork listener = forever $ do
     (sock, addr) <- accept listener
     putStrLn $ "Accepting connection from " ++ show addr ++ "..."
     pair <- iterStream sock
-    _ <- forkIO (handler pair)
+    _ <- forkIO (handler sock pair)
     return ()
 
 -- | Guard an opened socket so that it will always close during cleanup.
