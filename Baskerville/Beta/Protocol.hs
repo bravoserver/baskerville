@@ -8,28 +8,34 @@ import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
-data ProtocolState = ProtocolState ()
+data ProtocolStatus = Invalid | Connected | Authenticated | Located
+   deriving (Eq, Show)
+
+data ProtocolState = ProtocolState { psStatus :: ProtocolStatus }
+    deriving Show
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
 pipeline :: Monad m => Inum BS.ByteString BS.ByteString m a
-pipeline = mkInumAutoM $ loop $ ProtocolState ()
+pipeline = mkInumAutoM $ loop $ ProtocolState Connected
     where loop ps = do
             packet <- atto parsePacket
             let (state, packets) = processPacket ps packet
-            _ <- ifeed $ BS.concat $ map buildPacket packets
+            _ <- ifeed $ BS.concat $ map buildPacket $ takeWhile invalidPred packets
+            _ <- if psStatus ps == Invalid then idone else return ()
             loop state
 
-socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO a
+socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO ()
 socketHandler (output, input) = do
     putStrLn "Starting pipeline..."
-    input |$ pipeline .| output
+    _ <- input |$ pipeline .| output
+    putStrLn "Finished pipeline!"
 
 -- | A helper for iterating over an infinite packet stream and returning
 --   another infinite packet stream in return. When in doubt, use this.
 processPacketStream :: [Packet] -> [Packet]
 processPacketStream packets =
-    let state = ProtocolState ()
+    let state = ProtocolState Connected
         mapper = concat . snd . mapAccumL processPacket state
     in takeWhile invalidPred $ mapper packets
 
@@ -47,5 +53,6 @@ invalidPred _ = True
 --   process consecutive packets.
 processPacket :: ProtocolState -> Packet -> (ProtocolState, [Packet])
 processPacket ps PollPacket =
-    (ps, [ErrorPacket $ T.pack "Baskerville§0§1", InvalidPacket])
-processPacket ps _ = (ps, [InvalidPacket])
+    (ps { psStatus = Invalid },
+     [ErrorPacket $ T.pack "Baskerville§0§1", InvalidPacket])
+processPacket ps _ = (ps { psStatus = Invalid }, [InvalidPacket])
