@@ -24,13 +24,15 @@ str2bs s = BS.pack (map char2word8 s)
 
 handler :: Monad m => (Iter BS.ByteString m (), Onum BS.ByteString m [Packet]) -> m ()
 handler (output, input) = do
-    packets <- input |$ parser
-    inumPure (BS.concat $ map buildPacket $ concatMap process packets) |$ output
+    packetsIn <- input |$ parser
+    let packetsOut = processPacketStream packetsIn
+    inumPure (BS.concat $ map buildPacket packetsOut) |$ output
     return ()
 
 fork :: Socket -> IO ()
 fork listener = forever $ do
     (sock, addr) <- accept listener
+    putStrLn $ "Accepting connection from " ++ show addr ++ "..."
     pair <- iterStream sock
     _ <- forkIO (handler pair)
     return ()
