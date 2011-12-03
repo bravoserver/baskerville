@@ -28,25 +28,17 @@ pipeline = mkInumAutoM $ loop $ ProtocolState ()
             _ <- ifeed $ BS.concat $ map buildPacket packets
             loop state
 
-handler :: Socket -> (Iter BS.ByteString IO (), Onum BS.ByteString IO [Packet]) -> IO ()
-handler sock (output, input) = do
-    putStrLn "Starting handler..."
-    packetsIn <- input |$ parser
-    putStrLn "Wired up input..."
-    let packetsOut = processPacketStream packetsIn
-    putStrLn "Processed packets..."
-    builder packetsOut |$ output
-    putStrLn "Output data..."
-    sClose sock
-    putStrLn "Closed socket!"
-    return ()
+handler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO a
+handler (output, input) = do
+    putStrLn "Starting pipeline..."
+    input |$ pipeline .| output
 
 fork :: Socket -> IO ()
 fork listener = forever $ do
     (sock, addr) <- accept listener
     putStrLn $ "Accepting connection from " ++ show addr ++ "..."
     pair <- iterStream sock
-    _ <- forkIO (handler sock pair)
+    _ <- forkIO (handler pair)
     return ()
 
 -- | Guard an opened socket so that it will always close during cleanup.
