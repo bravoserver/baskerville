@@ -1,5 +1,6 @@
 module Baskerville.Beta.Protocol where
 
+import Control.Monad.Trans.Class
 import qualified Data.ByteString as BS
 import Data.IterIO
 import Data.IterIO.Atto
@@ -16,13 +17,18 @@ data ProtocolState = ProtocolState { psStatus :: ProtocolStatus }
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
-pipeline :: Monad m => Inum BS.ByteString BS.ByteString m a
+pipeline :: Inum BS.ByteString BS.ByteString IO a
 pipeline = mkInumAutoM $ loop $ ProtocolState Connected
     where loop ps = do
+            lift $ lift $ putStrLn $ "Top of the pipeline, state " ++ show ps
             packet <- atto parsePacket
+            lift $ lift $ putStrLn $ "Parsed a packet: " ++ show packet
             let (state, packets) = processPacket ps packet
+            lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
             _ <- ifeed $ BS.concat $ map buildPacket $ takeWhile invalidPred packets
-            _ <- if psStatus ps == Invalid then idone else return ()
+            lift $ lift $ putStrLn "Fed the iteratee!"
+            _ <- if psStatus state == Invalid then idone else return ()
+            lift $ lift $ putStrLn "Getting ready to loop!"
             loop state
 
 socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO ()

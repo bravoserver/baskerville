@@ -71,7 +71,8 @@ Library
   Build-depends:
       base,
       attoparsec,
-      text
+      text,
+      transformers
 
   -- Modules not exported by this package.
   -- Other-modules:
