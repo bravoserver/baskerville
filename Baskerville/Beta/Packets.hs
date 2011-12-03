@@ -3,7 +3,6 @@ module Baskerville.Beta.Packets where
 import Prelude hiding (take)
 
 import Data.Attoparsec
-import Data.Attoparsec.Combinator
 import Data.Bits
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -53,13 +52,13 @@ parsePacket = do
     pPacketBody header
 
 pPacketBody :: Word8 -> Parser Packet
-pPacketBody 0xef = return PollPacket
+pPacketBody 0xfe = return PollPacket
 pPacketBody 0xff = do
     message <- pUcs2
     return $! ErrorPacket message
 pPacketBody _ = return InvalidPacket
 
 buildPacket :: Packet -> BS.ByteString
-buildPacket PollPacket = BS.singleton 0xef
+buildPacket PollPacket = BS.singleton 0xfe
 buildPacket (ErrorPacket t) = BS.cons 0xff (bUcs2 t)
 buildPacket _ = BS.empty
