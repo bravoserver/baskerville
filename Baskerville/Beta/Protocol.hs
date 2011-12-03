@@ -1,11 +1,29 @@
 module Baskerville.Beta.Protocol where
 
+import qualified Data.ByteString as BS
+import Data.IterIO
+import Data.IterIO.Atto
 import Data.List
 import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
 data ProtocolState = ProtocolState ()
+
+-- | Repeatedly read in packets, process them, and output them.
+--   Internally holds the state required for a protocol.
+pipeline :: Monad m => Inum BS.ByteString BS.ByteString m a
+pipeline = mkInumAutoM $ loop $ ProtocolState ()
+    where loop ps = do
+            packet <- atto parsePacket
+            let (state, packets) = processPacket ps packet
+            _ <- ifeed $ BS.concat $ map buildPacket packets
+            loop state
+
+socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO a
+socketHandler (output, input) = do
+    putStrLn "Starting pipeline..."
+    input |$ pipeline .| output
 
 -- | A helper for iterating over an infinite packet stream and returning
 --   another infinite packet stream in return. When in doubt, use this.
