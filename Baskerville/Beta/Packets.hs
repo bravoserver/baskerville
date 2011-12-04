@@ -9,12 +9,29 @@ import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
 
+data Mode = Survival | Creative deriving (Enum, Show)
+
+data Dimension = Earth | Sky | Nether deriving (Show)
+
+instance Enum Dimension where
+    fromEnum Earth = 0x00
+    fromEnum Sky = 0x01
+    fromEnum Nether = 0xff
+
+    toEnum 0x00 = Earth
+    toEnum 0x01 = Sky
+    toEnum 0xff = Nether
+
 -- | The packet datatype.
 --   Packets are the basic unit of communication between MC clients and
 --   servers. They are atomic and self-contained. The first byte of a packet
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32
+            | LoginPacket Word32 T.Text Word64 Mode Dimension Word8 Word8 Word8
+            | HandshakePacket T.Text
+            | ChatPacket T.Text
+            | TimePacket Word64
             | PollPacket
             | ErrorPacket T.Text
             | InvalidPacket
@@ -36,16 +53,27 @@ bWord16 w = let promote a = fromIntegral a :: Word8
 pWord32 :: Parser Word32
 pWord32 = let promote a = fromIntegral a :: Word32
     in do
-        b1 <- anyWord8
-        b2 <- anyWord8
-        b3 <- anyWord8
-        b4 <- anyWord8
-        return $! (promote b1 `shiftL` 24) .|. (promote b2 `shiftL` 16) .|.
-                  (promote b3 `shiftL` 8) .|. promote b4
+        s1 <- pWord16
+        s2 <- pWord16
+        return $!(promote s1 `shiftL` 16) .|. promote s2
 
 bWord32 :: (Bits a, Integral a) => a -> BS.ByteString
 bWord32 w = let promote a = fromIntegral a :: Word8
     in BS.pack [promote $ w `shiftR` 24, promote $ w `shiftR` 16,
+                promote $ w `shiftR` 8, promote w]
+
+pWord64 :: Parser Word64
+pWord64 = let promote a = fromIntegral a :: Word64
+    in do
+        i1 <- pWord32
+        i2 <- pWord32
+        return $!(promote i1 `shiftL` 32) .|. promote i2
+
+bWord64 :: (Bits a, Integral a) => a -> BS.ByteString
+bWord64 w = let promote a = fromIntegral a :: Word8
+    in BS.pack [promote $ w `shiftR` 56, promote $ w `shiftR` 48,
+                promote $ w `shiftR` 40, promote $ w `shiftR` 32,
+                promote $ w `shiftR` 24, promote $ w `shiftR` 16,
                 promote $ w `shiftR` 8, promote w]
 
 -- | Parse a length-prefixed UCS2 string and return it as a Text.
