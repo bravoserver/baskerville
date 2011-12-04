@@ -5,22 +5,36 @@ import Prelude hiding (take)
 import Data.Attoparsec
 import Data.Bits
 import qualified Data.ByteString as BS
+import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
 
 data Mode = Survival | Creative deriving (Enum, Show)
 
-data Dimension = Earth | Sky | Nether deriving (Show)
+instance Serialize Mode where
+    put Survival = putWord8 0x00
+    put Creative = putWord8 0x01
 
-instance Enum Dimension where
-    fromEnum Earth = 0x00
-    fromEnum Sky = 0x01
-    fromEnum Nether = 0xff
+    get = do
+        value <- getWord8
+        return $ case value of
+            0x01 -> Survival
+            _ -> Creative
 
-    toEnum 0x00 = Earth
-    toEnum 0x01 = Sky
-    toEnum 0xff = Nether
+data Dimension = Earth | Sky | Nether deriving (Enum, Show)
+
+instance Serialize Dimension where
+    put Earth = putWord8 0x00
+    put Sky = putWord8 0x01
+    put Nether = putWord8 0xff
+
+    get = do
+        value <- getWord8
+        return $ case value of
+            0x01 -> Sky
+            0xff -> Nether
+            _ -> Earth
 
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
     deriving (Enum, Show)

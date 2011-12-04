@@ -71,6 +71,7 @@ Library
   Build-depends:
       base,
       attoparsec,
+      cereal,
       text,
       transformers
 
