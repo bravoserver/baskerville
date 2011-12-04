@@ -70,6 +70,9 @@ instance Serialize Packet where
     put (PingPacket pid) = do
         putWord8 0x00
         putWord32be pid
+    put (HandshakePacket t) = do
+        putWord8 0x02
+        putByteString (bUcs2 t)
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = do
         putWord8 0xff
@@ -128,6 +131,9 @@ pPacketBody :: Word8 -> Parser Packet
 pPacketBody 0x00 = do
     pid <- pWord32
     return $! PingPacket pid
+pPacketBody 0x02 = do
+    message <- pUcs2
+    return $! HandshakePacket message
 pPacketBody 0xfe = return PollPacket
 pPacketBody 0xff = do
     message <- pUcs2
