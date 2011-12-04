@@ -1,5 +1,6 @@
 module Baskerville.Beta.Protocol where
 
+import Control.Monad
 import Control.Monad.Trans.Class
 import qualified Data.ByteString as BS
 import Data.IterIO
@@ -14,7 +15,7 @@ data ProtocolStatus = Invalid | Connected | Authenticated | Located
    deriving (Eq, Show)
 
 data ProtocolState = ProtocolState { psStatus :: ProtocolStatus }
-    deriving Show
+    deriving (Show)
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
@@ -28,7 +29,7 @@ pipeline = mkInumAutoM $ loop $ ProtocolState Connected
             lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
             _ <- ifeed $ BS.concat $ map encode $ takeWhile invalidPred packets
             lift $ lift $ putStrLn "Fed the iteratee!"
-            _ <- if psStatus state == Invalid then idone else return ()
+            when (psStatus state == Invalid) idone
             lift $ lift $ putStrLn "Getting ready to loop!"
             loop state
 
