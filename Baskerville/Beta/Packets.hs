@@ -15,11 +15,12 @@ instance Serialize Mode where
     put Survival = putWord8 0x00
     put Creative = putWord8 0x01
 
-    get = do
-        value <- getWord8
-        return $ case value of
-            0x01 -> Survival
-            _ -> Creative
+pMode :: Parser Mode
+pMode = do
+    value <- anyWord8
+    return $ case value of
+        0x00 -> Survival
+        _ -> Creative
 
 data Dimension = Earth | Sky | Nether deriving (Enum, Show)
 
@@ -28,12 +29,13 @@ instance Serialize Dimension where
     put Sky = putWord8 0x01
     put Nether = putWord8 0xff
 
-    get = do
-        value <- getWord8
-        return $ case value of
-            0x01 -> Sky
-            0xff -> Nether
-            _ -> Earth
+pDimension :: Parser Dimension
+pDimension = do
+    value <- anyWord8
+    return $ case value of
+        0x01 -> Sky
+        0xff -> Nether
+        _ -> Earth
 
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
     deriving (Enum, Show)
@@ -41,8 +43,16 @@ data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
 data Face = Noop | YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
     deriving (Enum, Show)
 
-data Item = Item Word16 Word16 Word8
+data Item = Item { primary :: Word16, secondary :: Word16, quantity :: Word8 }
     deriving (Show)
+
+instance Serialize Item where
+    put (Item p s q) = putWord16be p >> putWord16be s >> putWord8 q
+    get = do
+        p <- getWord16be
+        s <- getWord16be
+        q <- getWord8
+        return $ Item p s q
 
 -- | The packet datatype.
 --   Packets are the basic unit of communication between MC clients and
@@ -67,9 +77,19 @@ data Packet = PingPacket Word32
 
 instance Serialize Packet where
     put (PingPacket pid) = putWord8 0x00 >> putWord32be pid
-    put (HandshakePacket t) = putWord8 0x02 >> putByteString (bUcs2 t)
+    put (LoginPacket a b c d e f g h) = do
+        putWord8 0x01
+        putWord32be a
+        putUcs2 b
+        putWord64be c
+        put d
+        put e
+        put f
+        put g
+        put h
+    put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
     put PollPacket = putWord8 0xfe
-    put (ErrorPacket t) = putWord8 0xff >> putByteString (bUcs2 t)
+    put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
     put _ = putByteString BS.empty
 
     get = return InvalidPacket
@@ -117,6 +137,9 @@ pUcs2 = do
 bUcs2 :: T.Text -> BS.ByteString
 bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
 
+putUcs2 :: Putter T.Text
+putUcs2 = putByteString . bUcs2
+
 parsePackets :: Parser [Packet]
 parsePackets = many1 parsePacket
 
@@ -129,6 +152,17 @@ pPacketBody :: Word8 -> Parser Packet
 pPacketBody 0x00 = do
     pid <- pWord32
     return $! PingPacket pid
+pPacketBody 0x01 = do
+    protocol <- pWord32
+    challenge <- pUcs2
+    seed <- pWord64
+    mode <- pMode
+    dimension <- pDimension
+    difficulty <- anyWord8
+    height <- anyWord8
+    players <- anyWord8
+    return $! LoginPacket protocol challenge seed mode dimension difficulty
+        height players
 pPacketBody 0x02 = do
     message <- pUcs2
     return $! HandshakePacket message
