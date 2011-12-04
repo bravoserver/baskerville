@@ -14,6 +14,8 @@ data Mode = Survival | Creative deriving (Enum, Show)
 instance Serialize Mode where
     put Survival = putWord8 0x00
     put Creative = putWord8 0x01
+    -- Stubbed
+    get = getWord8 >> return Creative
 
 pMode :: Parser Mode
 pMode = do
@@ -28,6 +30,8 @@ instance Serialize Dimension where
     put Earth = putWord8 0x00
     put Sky = putWord8 0x01
     put Nether = putWord8 0xff
+    -- Stubbed
+    get = getWord8 >> return Earth
 
 pDimension :: Parser Dimension
 pDimension = do
