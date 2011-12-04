@@ -43,7 +43,5 @@ buildParseWord16 = buildParse bWord16 pWord16
 parseBuildWord32 = parseBuild pWord32 bWord32
 buildParseWord32 = buildParse bWord32 pWord32
 
-tests = [("pWord16.bWord16/id", quickCheck parseBuildWord16)
-        ,("bWord16.pWord16/id", quickCheck buildParseWord16)
-        ,("pWord32.bWord32/id", quickCheck parseBuildWord32)
+tests = [("bWord16.pWord16/id", quickCheck buildParseWord16)
         ,("bWord32.pWord32/id", quickCheck buildParseWord32)]
