@@ -3,7 +3,6 @@ module Baskerville.Beta.Packets where
 import Prelude hiding (take)
 
 import Data.Attoparsec
-import Data.Bits
 import qualified Data.ByteString as BS
 import Data.Serialize
 import qualified Data.Text as T
@@ -67,46 +66,45 @@ data Packet = PingPacket Word32
             deriving (Show)
 
 instance Serialize Packet where
-    put (PingPacket pid) = do
-        putWord8 0x00
-        putWord32be pid
-    put (HandshakePacket t) = do
-        putWord8 0x02
-        putByteString (bUcs2 t)
+    put (PingPacket pid) = putWord8 0x00 >> putWord32be pid
+    put (HandshakePacket t) = putWord8 0x02 >> putByteString (bUcs2 t)
     put PollPacket = putWord8 0xfe
-    put (ErrorPacket t) = do
-        putWord8 0xff
-        putByteString (bUcs2 t)
+    put (ErrorPacket t) = putWord8 0xff >> putByteString (bUcs2 t)
     put _ = putByteString BS.empty
 
     get = return InvalidPacket
 
 -- | Parse two bytes and return them as a big-endian short integer.
 pWord16 :: Parser Word16
-pWord16 = let promote a = fromIntegral a :: Word16
-    in do
-        b1 <- anyWord8
-        b2 <- anyWord8
-        return $! (promote b1 `shiftL` 8) .|. promote b2
-
--- | Pack a big-endian short.
-bWord16 :: (Bits a, Integral a) => a -> BS.ByteString
-bWord16 w = let promote a = fromIntegral a :: Word8
-    in BS.pack [promote $ w `shiftR` 8, promote w]
+pWord16 = do
+    bytes <- take 2
+    return $! case decode bytes of
+        Left _ -> 0
+        Right x -> x
 
 pWord32 :: Parser Word32
-pWord32 = let promote a = fromIntegral a :: Word32
-    in do
-        s1 <- pWord16
-        s2 <- pWord16
-        return $!(promote s1 `shiftL` 16) .|. promote s2
+pWord32 = do
+    bytes <- take 4
+    return $! case decode bytes of
+        Left _ -> 0
+        Right x -> x
 
 pWord64 :: Parser Word64
-pWord64 = let promote a = fromIntegral a :: Word64
-    in do
-        i1 <- pWord32
-        i2 <- pWord32
-        return $!(promote i1 `shiftL` 32) .|. promote i2
+pWord64 = do
+    bytes <- take 8
+    return $! case decode bytes of
+        Left _ -> 0
+        Right x -> x
+
+-- | Pack a big-endian short.
+bWord16 :: Word16 -> BS.ByteString
+bWord16 = encode
+
+bWord32 :: Word32 -> BS.ByteString
+bWord32 = encode
+
+bWord64 :: Word64 -> BS.ByteString
+bWord64 = encode
 
 -- | Parse a length-prefixed UCS2 string and return it as a Text.
 pUcs2 :: Parser T.Text
@@ -117,7 +115,7 @@ pUcs2 = do
 
 -- | Pack a text string into a UCS2 length-prefixed string.
 bUcs2 :: T.Text -> BS.ByteString
-bUcs2 t = BS.append (bWord16 $ T.length t) (encodeUtf16BE t)
+bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
 
 parsePackets :: Parser [Packet]
 parsePackets = many1 parsePacket
