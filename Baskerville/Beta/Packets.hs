@@ -66,6 +66,18 @@ data Packet = PingPacket Word32
             | InvalidPacket
             deriving (Show)
 
+instance Serialize Packet where
+    put (PingPacket pid) = do
+        putWord8 0x00
+        putWord32be pid
+    put PollPacket = putWord8 0xfe
+    put (ErrorPacket t) = do
+        putWord8 0xff
+        putByteString (bUcs2 t)
+    put _ = putByteString BS.empty
+
+    get = return InvalidPacket
+
 -- | Parse two bytes and return them as a big-endian short integer.
 pWord16 :: Parser Word16
 pWord16 = let promote a = fromIntegral a :: Word16
@@ -86,24 +98,12 @@ pWord32 = let promote a = fromIntegral a :: Word32
         s2 <- pWord16
         return $!(promote s1 `shiftL` 16) .|. promote s2
 
-bWord32 :: (Bits a, Integral a) => a -> BS.ByteString
-bWord32 w = let promote a = fromIntegral a :: Word8
-    in BS.pack [promote $ w `shiftR` 24, promote $ w `shiftR` 16,
-                promote $ w `shiftR` 8, promote w]
-
 pWord64 :: Parser Word64
 pWord64 = let promote a = fromIntegral a :: Word64
     in do
         i1 <- pWord32
         i2 <- pWord32
         return $!(promote i1 `shiftL` 32) .|. promote i2
-
-bWord64 :: (Bits a, Integral a) => a -> BS.ByteString
-bWord64 w = let promote a = fromIntegral a :: Word8
-    in BS.pack [promote $ w `shiftR` 56, promote $ w `shiftR` 48,
-                promote $ w `shiftR` 40, promote $ w `shiftR` 32,
-                promote $ w `shiftR` 24, promote $ w `shiftR` 16,
-                promote $ w `shiftR` 8, promote w]
 
 -- | Parse a length-prefixed UCS2 string and return it as a Text.
 pUcs2 :: Parser T.Text
@@ -133,9 +133,3 @@ pPacketBody 0xff = do
     message <- pUcs2
     return $! ErrorPacket message
 pPacketBody _ = return InvalidPacket
-
-buildPacket :: Packet -> BS.ByteString
-buildPacket (PingPacket pid) = BS.cons 0x00 (bWord32 pid)
-buildPacket PollPacket = BS.singleton 0xfe
-buildPacket (ErrorPacket t) = BS.cons 0xff (bUcs2 t)
-buildPacket _ = BS.empty

@@ -5,6 +5,7 @@ import qualified Data.ByteString as BS
 import Data.IterIO
 import Data.IterIO.Atto
 import Data.List
+import Data.Serialize
 import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
@@ -25,7 +26,7 @@ pipeline = mkInumAutoM $ loop $ ProtocolState Connected
             lift $ lift $ putStrLn $ "Parsed a packet: " ++ show packet
             let (state, packets) = processPacket ps packet
             lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
-            _ <- ifeed $ BS.concat $ map buildPacket $ takeWhile invalidPred packets
+            _ <- ifeed $ BS.concat $ map encode $ takeWhile invalidPred packets
             lift $ lift $ putStrLn "Fed the iteratee!"
             _ <- if psStatus state == Invalid then idone else return ()
             lift $ lift $ putStrLn "Getting ready to loop!"
