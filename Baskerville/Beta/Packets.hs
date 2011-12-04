@@ -22,6 +22,15 @@ instance Enum Dimension where
     toEnum 0x01 = Sky
     toEnum 0xff = Nether
 
+data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
+    deriving (Enum, Show)
+
+data Face = Noop | YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
+    deriving (Enum, Show)
+
+data Item = Item Word16 Word16 Word8
+    deriving (Show)
+
 -- | The packet datatype.
 --   Packets are the basic unit of communication between MC clients and
 --   servers. They are atomic and self-contained. The first byte of a packet
@@ -32,6 +41,12 @@ data Packet = PingPacket Word32
             | HandshakePacket T.Text
             | ChatPacket T.Text
             | TimePacket Word64
+            | EquipmentPacket Word32 Word16 Word16 Word16
+            | SpawnPacket Word32 Word32 Word32
+            | UsePacket Word32 Word32 Word8
+            | RespawnPacket Dimension Word8 Word8 Word16 Word64
+            | DiggingPacket DiggingState Word32 Word8 Word32
+            | BuildPacket Word32 Word8 Word32 Face Item
             | PollPacket
             | ErrorPacket T.Text
             | InvalidPacket
