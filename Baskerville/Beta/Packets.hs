@@ -24,11 +24,11 @@ pMode = do
         0x00 -> Survival
         _ -> Creative
 
-data Dimension = Earth | Sky | Nether deriving (Enum, Show)
+data Dimension = Earth | TheEnd | Nether deriving (Enum, Show)
 
 instance Serialize Dimension where
     put Earth = putWord8 0x00
-    put Sky = putWord8 0x01
+    put TheEnd = putWord8 0x01
     put Nether = putWord8 0xff
     -- Stubbed
     get = getWord8 >> return Earth
@@ -37,9 +37,28 @@ pDimension :: Parser Dimension
 pDimension = do
     value <- anyWord8
     return $ case value of
-        0x01 -> Sky
+        0x01 -> TheEnd
         0xff -> Nether
         _ -> Earth
+
+data Difficulty = Peaceful | Easy | Medium | Hard deriving (Enum, Show)
+
+instance Serialize Difficulty where
+    put Peaceful = putWord8 0x00
+    put Easy = putWord8 0x01
+    put Medium = putWord8 0x02
+    put Hard = putWord8 0x03
+    -- Stubbed
+    get = getWord8 >> return Peaceful
+
+pDifficulty :: Parser Difficulty
+pDifficulty = do
+    value <- anyWord8
+    return $ case value of
+        0x01 -> Easy
+        0x02 -> Medium
+        0x03 -> Hard
+        _ -> Peaceful
 
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
     deriving (Enum, Show)
@@ -64,7 +83,7 @@ instance Serialize Item where
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32
-            | LoginPacket Word32 T.Text Word64 Mode Dimension Word8 Word8 Word8
+            | LoginPacket Word32 T.Text Word64 Mode Dimension Difficulty Word8 Word8
             | HandshakePacket T.Text
             | ChatPacket T.Text
             | TimePacket Word64
@@ -124,12 +143,6 @@ pWord64 = do
 bWord16 :: Word16 -> BS.ByteString
 bWord16 = encode
 
-bWord32 :: Word32 -> BS.ByteString
-bWord32 = encode
-
-bWord64 :: Word64 -> BS.ByteString
-bWord64 = encode
-
 -- | Parse a length-prefixed UCS2 string and return it as a Text.
 pUcs2 :: Parser T.Text
 pUcs2 = do
@@ -162,7 +175,7 @@ pPacketBody 0x01 = do
     seed <- pWord64
     mode <- pMode
     dimension <- pDimension
-    difficulty <- anyWord8
+    difficulty <- pDifficulty
     height <- anyWord8
     players <- anyWord8
     return $! LoginPacket protocol challenge seed mode dimension difficulty
