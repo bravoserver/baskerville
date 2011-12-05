@@ -61,6 +61,8 @@ Library
   Exposed-modules:
       Baskerville.Beta.Packets
       Baskerville.Beta.Protocol
+      Baskerville.Chunk
+      Baskerville.Coords
       Baskerville.Factory
       Baskerville.Simplex
       Baskerville.Utilities.Bits
@@ -70,6 +72,7 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:
       base,
+      array,
       attoparsec,
       cereal,
       text,
