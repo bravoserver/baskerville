@@ -62,6 +62,7 @@ Library
       Baskerville.Beta.Packets
       Baskerville.Beta.Protocol
       Baskerville.Chunk
+      Baskerville.Chunk.Generators
       Baskerville.Coords
       Baskerville.Factory
       Baskerville.Simplex
