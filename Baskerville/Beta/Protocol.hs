@@ -80,7 +80,7 @@ processPacket ps (LoginPacket protocol _ _ _ _ _ _ _) = runST $ do
             modifySTRef state (\x -> x { psStatus = Invalid })
             modifySTRef packets (ErrorPacket (T.pack "Unsupported protocol") :)
         else do
-            modifySTRef state (\x -> x { psStatus = Connected })
+            modifySTRef state (\x -> x { psStatus = Authenticated })
             modifySTRef packets (LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10 :)
     newps <- readSTRef state
     newpackets <- readSTRef packets
