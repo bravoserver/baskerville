@@ -157,9 +157,6 @@ bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
 putUcs2 :: Putter T.Text
 putUcs2 = putByteString . bUcs2
 
-parsePackets :: Parser [Packet]
-parsePackets = many1 parsePacket
-
 parsePacket :: Parser Packet
 parsePacket = do
     header <- anyWord8
