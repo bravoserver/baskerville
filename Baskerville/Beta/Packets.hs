@@ -14,7 +14,8 @@ f <$!> ma = do
     a <- ma
     return $! f a
 
-data Mode = Survival | Creative deriving (Enum, Show)
+data Mode = Survival | Creative
+    deriving (Enum, Eq, Show)
 
 instance Serialize Mode where
     put Survival = putWord8 0x00
@@ -26,7 +27,8 @@ instance Serialize Mode where
             0x00 -> Survival
             _    -> Creative
 
-data Dimension = Earth | TheEnd | Nether deriving (Enum, Show)
+data Dimension = Earth | TheEnd | Nether
+    deriving (Enum, Eq, Show)
 
 instance Serialize Dimension where
     put Earth = putWord8 0x00
@@ -40,7 +42,8 @@ instance Serialize Dimension where
             0xff -> Nether
             _    -> Earth
 
-data Difficulty = Peaceful | Easy | Medium | Hard deriving (Enum, Show)
+data Difficulty = Peaceful | Easy | Medium | Hard
+    deriving (Enum, Eq, Show)
 
 instance Serialize Difficulty where
     put Peaceful = putWord8 0x00
@@ -57,13 +60,13 @@ instance Serialize Difficulty where
             _    -> Peaceful
 
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
-    deriving (Enum, Show)
+    deriving (Enum, Eq, Show)
 
 data Face = Noop | YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
-    deriving (Enum, Show)
+    deriving (Enum, Eq, Show)
 
 data Item = Item { primary :: Word16, secondary :: Word16, quantity :: Word8 }
-    deriving (Show)
+    deriving (Eq, Show)
 
 instance Serialize Item where
     put (Item p s q) = putWord16be p >> putWord16be s >> putWord8 q
@@ -110,7 +113,7 @@ data Packet = PingPacket Word32
             | PollPacket
             | ErrorPacket T.Text
             | InvalidPacket
-            deriving (Show)
+    deriving (Eq, Show)
 
 instance Serialize Packet where
     put (PingPacket pid) = putWord8 0x00 >> putWord32be pid

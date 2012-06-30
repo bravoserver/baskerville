@@ -54,6 +54,7 @@ Executable baskerville
                  , conduit
                  , network
                  , network-conduit
+                 , transformers
 
   -- GHC compiler flags.
   ghc-options:         -Wall -rtsopts

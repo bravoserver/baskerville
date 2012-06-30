@@ -2,10 +2,10 @@ module Baskerville.Beta.Protocol where
 
 import Control.Monad
 import Control.Monad.ST
-import Control.Monad.Trans.Class
-import qualified Data.ByteString as BS
+import Control.Monad.IO.Class
+import Control.Monad.Trans.State
+import Data.Conduit
 import Data.List
-import Data.Serialize
 import Data.STRef
 import qualified Data.Text as T
 
@@ -25,6 +25,23 @@ startingState = ProtocolState Connected T.empty
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
+worker :: Conduit Packet (StateT ProtocolState IO) Packet
+worker = do
+    mpacket <- await
+    case mpacket of
+        Just packet -> do
+            liftIO $ putStrLn "Got a packet!"
+            liftIO . putStrLn $ show packet
+            yield packet
+            when (packet /= InvalidPacket) worker
+        Nothing -> liftIO $ putStrLn "No more packets!"
+
+protocol :: Conduit Packet IO Packet
+protocol = let
+    runner :: StateT ProtocolState IO a -> IO a
+    runner = flip evalStateT startingState
+    in transPipe runner worker
+
 -- pipeline :: Inum BS.ByteString BS.ByteString IO a
 -- pipeline = mkInumAutoM $ loop startingState
 --     where loop ps = do
