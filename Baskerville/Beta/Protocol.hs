@@ -4,8 +4,6 @@ import Control.Monad
 import Control.Monad.ST
 import Control.Monad.Trans.Class
 import qualified Data.ByteString as BS
-import Data.IterIO
-import Data.IterIO.Atto
 import Data.List
 import Data.Serialize
 import Data.STRef
@@ -27,25 +25,25 @@ startingState = ProtocolState Connected T.empty
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
-pipeline :: Inum BS.ByteString BS.ByteString IO a
-pipeline = mkInumAutoM $ loop startingState
-    where loop ps = do
-            lift $ lift $ putStrLn $ "Top of the pipeline, state " ++ show ps
-            packet <- atto parsePacket
-            lift $ lift $ putStrLn $ "Parsed a packet: " ++ show packet
-            let (state, packets) = processPacket ps packet
-            lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
-            _ <- ifeed $ BS.concat $ map encode $ takeWhile invalidPred packets
-            lift $ lift $ putStrLn "Fed the iteratee!"
-            when (psStatus state == Invalid) idone
-            lift $ lift $ putStrLn "Getting ready to loop!"
-            loop state
-
-socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO ()
-socketHandler (output, input) = do
-    putStrLn "Starting pipeline..."
-    _ <- input |$ pipeline .| output
-    putStrLn "Finished pipeline!"
+-- pipeline :: Inum BS.ByteString BS.ByteString IO a
+-- pipeline = mkInumAutoM $ loop startingState
+--     where loop ps = do
+--             lift $ lift $ putStrLn $ "Top of the pipeline, state " ++ show ps
+--             packet <- atto parsePacket
+--             lift $ lift $ putStrLn $ "Parsed a packet: " ++ show packet
+--             let (state, packets) = processPacket ps packet
+--             lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
+--             _ <- ifeed $ BS.concat $ map encode $ takeWhile invalidPred packets
+--             lift $ lift $ putStrLn "Fed the iteratee!"
+--             when (psStatus state == Invalid) idone
+--             lift $ lift $ putStrLn "Getting ready to loop!"
+--             loop state
+-- 
+-- socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO ()
+-- socketHandler (output, input) = do
+--     putStrLn "Starting pipeline..."
+--     _ <- input |$ pipeline .| output
+--     putStrLn "Finished pipeline!"
 
 -- | A helper for iterating over an infinite packet stream and returning
 --   another infinite packet stream in return. When in doubt, use this.

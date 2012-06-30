@@ -1,29 +1,21 @@
 module Main where
 
-import Control.Concurrent
-import Control.Exception hiding (catch)
-import Control.Monad
-import Network hiding (accept)
-import Network.Socket (accept)
-import Data.IterIO
+import Network
+import Data.Conduit
+import Data.Conduit.Network
 
-import Baskerville.Beta.Protocol
+-- import Baskerville.Beta.Protocol
 
-fork :: Socket -> IO ()
-fork listener = forever $ do
-    (sock, addr) <- accept listener
-    putStrLn $ "Accepting connection from " ++ show addr ++ "..."
-    pair <- iterStream sock
-    _ <- forkIO (socketHandler pair)
-    return ()
-
--- | Guard an opened socket so that it will always close during cleanup.
---   This can and should be used in place of listenOn.
-withListenOn :: PortID -> (Socket -> IO a) -> IO a
-withListenOn port = bracket (listenOn port) sClose 
+app :: Application IO
+app source sink = do
+    putStrLn "Before app..."
+    source $$ sink
+    putStrLn "After app!"
 
 startServer :: IO ()
-startServer = withListenOn (PortNumber 12321) fork
+startServer = runTCPServer (ServerSettings 12321 HostAny) app
 
 main :: IO ()
-main = withSocketsDo startServer
+main = withSocketsDo $ do
+    putStrLn "Starting up..."
+    startServer
