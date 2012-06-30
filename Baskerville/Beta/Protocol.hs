@@ -64,10 +64,10 @@ processPacket :: (Monad m) => Packet
 
 -- | Login. Examine all of the bits, make sure they match, and then reply in
 --   kind.
-processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) = do
+processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
-    if (protoVersion /= 22)
+    if protoVersion /= 22
         then do
             invalidate
             yield $ ErrorPacket $ T.pack "Unsupported protocol"

@@ -11,10 +11,10 @@ import Baskerville.Beta.Packets
 import Baskerville.Beta.Protocol
 
 toPackets :: Conduit BS.ByteString IO Packet
-toPackets = conduitGet $ get
+toPackets = conduitGet get
 
 fromPackets :: Conduit Packet IO BS.ByteString
-fromPackets = conduitPut $ put
+fromPackets = conduitPut put
 
 app :: Application IO
 app source sink = do
