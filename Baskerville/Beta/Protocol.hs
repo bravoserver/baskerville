@@ -1,12 +1,14 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Baskerville.Beta.Protocol where
 
 import Control.Monad
-import Control.Monad.ST
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Data.Conduit
-import Data.List
-import Data.STRef
+import Data.Lens.Lazy
+import Data.Lens.Template
 import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
@@ -14,10 +16,12 @@ import Baskerville.Beta.Packets
 data ProtocolStatus = Invalid | Connected | Authenticated | Located
    deriving (Eq, Show)
 
-data ProtocolState = ProtocolState { psStatus :: ProtocolStatus
-                                   , psNick :: T.Text
+data ProtocolState = ProtocolState { _psStatus :: ProtocolStatus
+                                   , _psNick :: T.Text
                                    }
     deriving (Show)
+
+$( makeLens ''ProtocolState )
 
 -- | The default starting state for a protocol.
 startingState :: ProtocolState
@@ -29,12 +33,14 @@ worker :: Conduit Packet (StateT ProtocolState IO) Packet
 worker = do
     mpacket <- await
     case mpacket of
+        Nothing -> liftIO $ putStrLn "No more packets!"
+        Just InvalidPacket -> liftIO $ putStrLn "Invalid packet!"
         Just packet -> do
             liftIO $ putStrLn "Got a packet!"
             liftIO . putStrLn $ show packet
-            yield packet
-            when (packet /= InvalidPacket) worker
-        Nothing -> liftIO $ putStrLn "No more packets!"
+            processPacket packet
+            status <- lift $ access psStatus
+            unless (status == Invalid) worker
 
 protocol :: Conduit Packet IO Packet
 protocol = let
@@ -42,78 +48,48 @@ protocol = let
     runner = flip evalStateT startingState
     in transPipe runner worker
 
--- pipeline :: Inum BS.ByteString BS.ByteString IO a
--- pipeline = mkInumAutoM $ loop startingState
---     where loop ps = do
---             lift $ lift $ putStrLn $ "Top of the pipeline, state " ++ show ps
---             packet <- atto parsePacket
---             lift $ lift $ putStrLn $ "Parsed a packet: " ++ show packet
---             let (state, packets) = processPacket ps packet
---             lift $ lift $ putStrLn $ "Processed a packet, state " ++ show state
---             _ <- ifeed $ BS.concat $ map encode $ takeWhile invalidPred packets
---             lift $ lift $ putStrLn "Fed the iteratee!"
---             when (psStatus state == Invalid) idone
---             lift $ lift $ putStrLn "Getting ready to loop!"
---             loop state
--- 
--- socketHandler :: (Iter BS.ByteString IO a, Onum BS.ByteString IO a) -> IO ()
--- socketHandler (output, input) = do
---     putStrLn "Starting pipeline..."
---     _ <- input |$ pipeline .| output
---     putStrLn "Finished pipeline!"
+invalidate :: (Monad m) => Conduit Packet (StateT ProtocolState m) Packet
+invalidate = lift $ psStatus ~= Invalid >> return ()
 
--- | A helper for iterating over an infinite packet stream and returning
---   another infinite packet stream in return. When in doubt, use this.
-processPacketStream :: [Packet] -> [Packet]
-processPacketStream packets =
-    let mapper = concat . snd . mapAccumL processPacket startingState
-    in takeWhile invalidPred $ mapper packets
-
--- | Determine whether a packet is an InvalidPacket.
---   This is used as a predicate for determining when to finish the packet
---   stream; InvalidPacket is always the end of the line. Note that the values
---   are inverted since this will be passed to takeWhile.
-invalidPred :: Packet -> Bool
-invalidPred InvalidPacket = False
-invalidPred _ = True
 
 -- | The main entry point for a protocol.
 --   Run this function over a packet and receive zero or more packets in
 --   reply. This function should be provided with state so that it can
 --   process consecutive packets.
-processPacket :: ProtocolState -> Packet -> (ProtocolState, [Packet])
+--   The type requires a Monad constraint in order to function correctly with
+--   StateT, but doesn't require IO in order to faciliate possible refactoring
+--   down the road.
+processPacket :: (Monad m) => Packet
+                           -> Conduit Packet (StateT ProtocolState m) Packet
 
 -- | Login. Examine all of the bits, make sure they match, and then reply in
 --   kind.
-processPacket ps (LoginPacket protocol _ _ _ _ _ _ _) = runST $ do
-    state <- newSTRef ps
-    packets <- newSTRef []
+processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) = do
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
-    if (protocol /= 22)
+    if (protoVersion /= 22)
         then do
-            modifySTRef state (\x -> x { psStatus = Invalid })
-            modifySTRef packets (ErrorPacket (T.pack "Unsupported protocol") :)
+            invalidate
+            yield $ ErrorPacket $ T.pack "Unsupported protocol"
         else do
-            modifySTRef state (\x -> x { psStatus = Authenticated })
-            modifySTRef packets (LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10 :)
-    newps <- readSTRef state
-    newpackets <- readSTRef packets
-    return (newps, newpackets)
+            _ <- lift $ psStatus ~= Authenticated
+            yield $ LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10
 
 -- | Handshake. Just write down the username.
-processPacket ps (HandshakePacket nick) =
-    (ps { psNick = nick }, [HandshakePacket $ T.pack "-"])
+processPacket (HandshakePacket nick) = do
+    _ <- lift $ psNick ~= nick
+    yield $ HandshakePacket $ T.pack "-"
 
 -- | A poll. Reply with a formatted error packet and close the connection.
-processPacket ps PollPacket =
-    (ps { psStatus = Invalid },
-     [ErrorPacket $ T.pack "Baskerville§0§1", InvalidPacket])
+processPacket PollPacket = do
+    invalidate
+    yield $ ErrorPacket $ T.pack "Baskerville§0§1"
+    yield InvalidPacket
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
 --   disconnect them.
-processPacket ps (ErrorPacket _) = (ps { psStatus = Invalid }, [])
+processPacket (ErrorPacket _) = invalidate
 
 -- | A packet which we don't handle. Kick the client, we're wasting time here.
-processPacket ps _ = (ps { psStatus = Invalid }, [])
+processPacket _ = invalidate
