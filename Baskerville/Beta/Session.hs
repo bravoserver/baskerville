@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Baskerville.Beta.Protocol where
+module Baskerville.Beta.Session where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -13,21 +13,21 @@ import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
-data ProtocolStatus = Invalid | Connected | Authenticated | Located
+data SessionStatus = Invalid | Connected | Authenticated | Located
    deriving (Eq, Show)
 
-data ProtocolState = ProtocolState { _psStatus :: ProtocolStatus
-                                   , _psNick :: T.Text
-                                   }
+data SessionState = SessionState { _ssStatus :: SessionStatus
+                                 , _ssNick :: T.Text
+                                 }
     deriving (Show)
 
-$( makeLens ''ProtocolState )
+$( makeLens ''SessionState )
 
-type Session m = StateT ProtocolState m
+type Session m = StateT SessionState m
 
 -- | The default starting state for a protocol.
-startingState :: ProtocolState
-startingState = ProtocolState Connected T.empty
+startingState :: SessionState
+startingState = SessionState Connected T.empty
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
@@ -41,7 +41,7 @@ worker = do
             liftIO $ putStrLn "Got a packet!"
             liftIO . putStrLn $ show packet
             processPacket packet
-            status <- lift $ access psStatus
+            status <- lift $ access ssStatus
             unless (status == Invalid) worker
 
 protocol :: Conduit Packet IO Packet
@@ -51,7 +51,7 @@ protocol = let
     in transPipe runner worker
 
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
-invalidate = lift $ psStatus ~= Invalid >> return ()
+invalidate = lift $ ssStatus ~= Invalid >> return ()
 
 errorOut :: (Monad m) => String -> Conduit Packet (Session m) Packet
 errorOut s = invalidate >> (yield $ ErrorPacket $ T.pack s)
@@ -74,12 +74,12 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
         then do
             errorOut "Unsupported protocol"
         else do
-            _ <- lift $ psStatus ~= Authenticated
+            _ <- lift $ ssStatus ~= Authenticated
             yield $ LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
-    _ <- lift $ psNick ~= nick
+    _ <- lift $ ssNick ~= nick
     yield $ HandshakePacket $ T.pack "-"
 
 -- | A poll. Reply with a formatted error packet and close the connection.

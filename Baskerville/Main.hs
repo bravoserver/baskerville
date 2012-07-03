@@ -8,7 +8,7 @@ import Data.Conduit.Network
 import Data.Serialize
 
 import Baskerville.Beta.Packets
-import Baskerville.Beta.Protocol
+import Baskerville.Beta.Session
 
 toPackets :: Conduit BS.ByteString IO Packet
 toPackets = conduitGet get
