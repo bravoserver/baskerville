@@ -128,6 +128,8 @@ instance Serialize Packet where
         put g
         put h
     put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
+    put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
+    put (TimePacket t) = putWord8 0x04 >> putWord64be t
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
     put _ = putByteString BS.empty
@@ -138,6 +140,8 @@ instance Serialize Packet where
             0x00 -> PingPacket <$!> getWord32be
             0x01 -> getLoginPacket
             0x02 -> HandshakePacket <$!> getUcs2
+            0x03 -> ChatPacket <$!> getUcs2
+            0x04 -> TimePacket <$!> getWord64be
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
             _    -> return InvalidPacket
