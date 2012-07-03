@@ -54,7 +54,7 @@ invalidate :: (Monad m) => Conduit Packet (Session m) Packet
 invalidate = lift $ ssStatus ~= Invalid >> return ()
 
 errorOut :: (Monad m) => String -> Conduit Packet (Session m) Packet
-errorOut s = invalidate >> (yield $ ErrorPacket $ T.pack s)
+errorOut s = invalidate >> yield (ErrorPacket $ T.pack s)
 
 -- | The main entry point for a protocol.
 --   Run this function over a packet and receive zero or more packets in
@@ -71,8 +71,7 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
     if protoVersion /= 22
-        then do
-            errorOut "Unsupported protocol"
+        then errorOut "Unsupported protocol"
         else do
             _ <- lift $ ssStatus ~= Authenticated
             yield $ LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10
@@ -83,8 +82,7 @@ processPacket (HandshakePacket nick) = do
     yield $ HandshakePacket $ T.pack "-"
 
 -- | A poll. Reply with a formatted error packet and close the connection.
-processPacket PollPacket = do
-    errorOut "Baskerville§0§1"
+processPacket PollPacket = errorOut "Baskerville§0§1"
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
