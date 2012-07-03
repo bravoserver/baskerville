@@ -70,7 +70,6 @@ Library
       Baskerville.Chunk
       Baskerville.Chunk.Generators
       Baskerville.Coords
-      Baskerville.Factory
       Baskerville.Simplex
       Baskerville.Utilities.Bits
       Baskerville.Utilities.Chat
