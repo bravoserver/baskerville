@@ -38,8 +38,7 @@ worker = do
         Nothing -> liftIO $ putStrLn "No more packets!"
         Just InvalidPacket -> liftIO $ putStrLn "Invalid packet!"
         Just packet -> do
-            liftIO $ putStrLn "Got a packet!"
-            liftIO . putStrLn $ show packet
+            liftIO $ putStrLn $ "Got a " ++ show packet ++ " packet!"
             processPacket packet
             status <- lift $ access ssStatus
             unless (status == Invalid) worker
