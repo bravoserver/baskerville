@@ -100,7 +100,7 @@ getUcs2 = do
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32
-            | LoginPacket Word32 T.Text Word64 Mode Dimension Difficulty Word8 Word8
+            | LoginPacket Word32 T.Text T.Text Mode Dimension Difficulty Word8 Word8
             | HandshakePacket T.Text
             | ChatPacket T.Text
             | TimePacket Word64
@@ -121,7 +121,7 @@ instance Serialize Packet where
         putWord8 0x01
         putWord32be a
         putUcs2 b
-        putWord64be c
+        putUcs2 c
         put d
         put e
         put f
@@ -150,7 +150,7 @@ getLoginPacket :: Get Packet
 getLoginPacket = do
     protocol <- getWord32be
     challenge <- getUcs2
-    seed <- getWord64be
+    seed <- getUcs2
     mode <- get
     dimension <- get
     difficulty <- get

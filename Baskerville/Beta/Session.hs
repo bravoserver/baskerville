@@ -69,11 +69,11 @@ processPacket :: (Monad m) => Packet -> Conduit Packet (Session m) Packet
 processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
-    if protoVersion /= 22
+    if protoVersion /= 29
         then errorOut "Unsupported protocol"
         else do
             _ <- lift $ ssStatus ~= Authenticated
-            yield $ LoginPacket 1 T.empty 0 Creative Earth Peaceful 128 10
+            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth Peaceful 128 10
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
