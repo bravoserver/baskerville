@@ -36,12 +36,23 @@ startingState = do
     chan <- newChan
     return $ SessionState Connected T.empty chan
 
+-- | Helper to empty out a Chan and yield all of its contents.
+yieldChan :: Chan Packet -> Conduit Packet (Session IO) Packet
+yieldChan chan = do
+    isEmpty <- liftIO $ isEmptyChan chan
+    if isEmpty then return () else do
+        opacket <- liftIO $ readChan chan
+        yield opacket
+        yieldChan chan
+
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
 worker :: Conduit Packet (Session IO) Packet
 worker = do
     s <- lift get
     liftIO $ putStrLn $ "Top of pipeline: " ++ show s
+    chan <- lift $ access ssBroadcast
+    yieldChan chan
     mpacket <- await
     case mpacket of
         Nothing -> liftIO $ putStrLn "No more packets!"
@@ -65,6 +76,12 @@ invalidate = lift $ ssStatus ~= Invalid >> return ()
 errorOut :: (Monad m) => String -> Conduit Packet (Session m) Packet
 errorOut s = invalidate >> yield (ErrorPacket $ T.pack s)
 
+-- | Broadcast to everybody.
+broadcast :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
+broadcast packet = do
+    chan <- lift $ access ssBroadcast
+    liftIO $ writeChan chan packet
+
 -- | The main entry point for a protocol.
 --   Run this function over a packet and receive zero or more packets in
 --   reply. This function should be provided with state so that it can
@@ -72,7 +89,7 @@ errorOut s = invalidate >> yield (ErrorPacket $ T.pack s)
 --   The type requires a Monad constraint in order to function correctly with
 --   StateT, but doesn't require IO in order to faciliate possible refactoring
 --   down the road.
-processPacket :: (Monad m) => Packet -> Conduit Packet (Session m) Packet
+processPacket :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client.
@@ -93,6 +110,11 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
 processPacket (HandshakePacket nick) = do
     _ <- lift $ ssNick ~= nick
     yield $ HandshakePacket $ T.pack "-"
+
+-- | Chat packet. Broadcast it to everybody else.
+processPacket cp@(ChatPacket chat) = do
+    status <- lift $ access ssStatus
+    when (status == Authenticated) $ broadcast cp
 
 -- | A poll. Reply with a formatted error packet and close the connection.
 processPacket PollPacket = errorOut "Baskerville§0§1"
