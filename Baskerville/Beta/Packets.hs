@@ -1,5 +1,6 @@
 module Baskerville.Beta.Packets where
 
+import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Serialize
 import qualified Data.Text as T
@@ -75,8 +76,12 @@ instance Serialize Airborne where
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
     deriving (Enum, Eq, Show)
 
-data Face = Noop | YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
+data Face = YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
     deriving (Enum, Eq, Show)
+
+instance Serialize Face where
+    put = putWord8 . toEnum . fromEnum
+    get = getWord8 >>= return . toEnum . fromEnum
 
 data Item = Item { primary :: Word16, secondary :: Word16, quantity :: Word8 }
     deriving (Eq, Show)
