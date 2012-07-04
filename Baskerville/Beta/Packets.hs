@@ -130,10 +130,10 @@ data Packet = PingPacket Word32
     deriving (Eq, Show)
 
 instance Serialize Packet where
-    put (PingPacket pid) = putWord8 0x00 >> putWord32be pid
+    put (PingPacket pid) = putWord8 0x00 >> put pid
     put (LoginPacket a b c d e f g h) = do
         putWord8 0x01
-        putWord32be a
+        put a
         putUcs2 b
         putUcs2 c
         put d
@@ -143,7 +143,7 @@ instance Serialize Packet where
         put h
     put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
-    put (TimePacket t) = putWord8 0x04 >> putWord64be t
+    put (TimePacket t) = putWord8 0x04 >> put t
     put (AirbornePacket a) = putWord8 0x0a >> put a
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
@@ -152,24 +152,24 @@ instance Serialize Packet where
     get = do
         header <- getWord8
         case header of
-            0x00 -> PingPacket <$!> getWord32be
+            0x00 -> PingPacket <$!> get
             0x01 -> getLoginPacket
             0x02 -> HandshakePacket <$!> getUcs2
             0x03 -> ChatPacket <$!> getUcs2
-            0x04 -> TimePacket <$!> getWord64be
+            0x04 -> TimePacket <$!> get
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
             _    -> return InvalidPacket
 
 getLoginPacket :: Get Packet
 getLoginPacket = do
-    protocol <- getWord32be
+    protocol <- get
     challenge <- getUcs2
     seed <- getUcs2
     mode <- get
     dimension <- get
     difficulty <- get
-    height <- getWord8
-    players <- getWord8
+    height <- get
+    players <- get
     return $! LoginPacket protocol challenge seed mode dimension difficulty
         height players
