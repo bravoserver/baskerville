@@ -164,12 +164,12 @@ instance Serialize Packet where
 getLoginPacket :: Get Packet
 getLoginPacket = do
     protocol <- get
-    challenge <- getUcs2
-    seed <- getUcs2
+    username <- getUcs2
+    levelType <- getUcs2
     mode <- get
     dimension <- get
     difficulty <- get
-    height <- get
+    unused <- get
     players <- get
-    return $! LoginPacket protocol challenge seed mode dimension difficulty
-        height players
+    return $! LoginPacket protocol username levelType mode dimension difficulty
+        unused players

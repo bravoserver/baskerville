@@ -110,7 +110,7 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
         then errorOut "Unsupported protocol"
         else do
             _ <- lift $ ssStatus ~= Authenticated
-            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth Peaceful 128 10
+            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth Peaceful 0 10
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
