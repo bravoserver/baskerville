@@ -2,7 +2,7 @@
 
 module Baskerville.Beta.Session where
 
-import Control.Concurrent.Chan
+import Control.Concurrent.STM
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -14,15 +14,15 @@ import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
-instance (Show a) => Show (Chan a) where
-    show _ = "Chan (...)"
+instance (Show a) => Show (TChan a) where
+    show _ = "TChan (...)"
 
 data SessionStatus = Invalid | Connected | Authenticated | Located
    deriving (Eq, Show)
 
 data SessionState = SessionState { _ssStatus :: SessionStatus
                                  , _ssNick :: T.Text
-                                 , _ssBroadcast :: Chan Packet
+                                 , _ssBroadcast :: TChan Packet
                                  }
     deriving (Show)
 
@@ -32,18 +32,19 @@ type Session m = StateT SessionState m
 
 -- | The default starting state for a protocol.
 startingState :: IO SessionState
-startingState = do
-    chan <- newChan
+startingState = atomically $ do
+    chan <- newTChan
     return $ SessionState Connected T.empty chan
 
--- | Helper to empty out a Chan and yield all of its contents.
-yieldChan :: Chan Packet -> Conduit Packet (Session IO) Packet
+-- | Helper to empty out a TChan into a list, once.
+yieldChan :: TChan a -> STM [a]
 yieldChan chan = do
-    isEmpty <- liftIO $ isEmptyChan chan
-    if isEmpty then return () else do
-        opacket <- liftIO $ readChan chan
-        yield opacket
-        yieldChan chan
+    ma <- tryReadTChan chan
+    case ma of
+        Just a -> do
+            as <- yieldChan chan
+            return $ a:as
+        Nothing -> return []
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
@@ -52,7 +53,8 @@ worker = do
     s <- lift get
     liftIO $ putStrLn $ "Top of pipeline: " ++ show s
     chan <- lift $ access ssBroadcast
-    yieldChan chan
+    opackets <- lift . lift . atomically $ yieldChan chan
+    mapM_ yield opackets
     mpacket <- await
     case mpacket of
         Nothing -> liftIO $ putStrLn "No more packets!"
@@ -66,7 +68,7 @@ worker = do
 protocol :: Conduit Packet (Session IO) Packet
 protocol = do
     chan <- lift $ access ssBroadcast
-    chan' <- liftIO $ dupChan chan
+    chan' <- liftIO . atomically $ dupTChan chan
     _ <- lift $ ssBroadcast ~= chan'
     worker
 
@@ -80,7 +82,7 @@ errorOut s = invalidate >> yield (ErrorPacket $ T.pack s)
 broadcast :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
 broadcast packet = do
     chan <- lift $ access ssBroadcast
-    liftIO $ writeChan chan packet
+    liftIO . atomically $ writeTChan chan packet
 
 -- | The main entry point for a protocol.
 --   Run this function over a packet and receive zero or more packets in
