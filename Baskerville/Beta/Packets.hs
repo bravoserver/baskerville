@@ -59,6 +59,19 @@ instance Serialize Difficulty where
             0x03 -> Hard
             _    -> Peaceful
 
+data Airborne = Grounded | Aloft
+    deriving (Enum, Eq, Show)
+
+instance Serialize Airborne where
+    put Grounded = putWord8 0x00
+    put Aloft = putWord8 0x01
+    -- Default to Aloft, since it's a boolean.
+    get = do
+        d <- getWord8
+        return $ case d of
+            0x00 -> Grounded
+            _    -> Aloft
+
 data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
     deriving (Enum, Eq, Show)
 
@@ -107,7 +120,8 @@ data Packet = PingPacket Word32
             | EquipmentPacket Word32 Word16 Word16 Word16
             | SpawnPacket Word32 Word32 Word32
             | UsePacket Word32 Word32 Word8
-            | RespawnPacket Dimension Word8 Word8 Word16 Word64
+            | RespawnPacket Dimension Difficulty Mode Word16 T.Text
+            | AirbornePacket Airborne
             | DiggingPacket DiggingState Word32 Word8 Word32
             | BuildPacket Word32 Word8 Word32 Face Item
             | PollPacket
@@ -130,6 +144,7 @@ instance Serialize Packet where
     put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
     put (TimePacket t) = putWord8 0x04 >> putWord64be t
+    put (AirbornePacket a) = putWord8 0x0a >> put a
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
     put _ = putByteString BS.empty
