@@ -2,6 +2,7 @@
 
 module Baskerville.Beta.Session where
 
+import Control.Concurrent.Chan
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -13,11 +14,15 @@ import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
+instance (Show a) => Show (Chan a) where
+    show _ = "Chan (...)"
+
 data SessionStatus = Invalid | Connected | Authenticated | Located
    deriving (Eq, Show)
 
 data SessionState = SessionState { _ssStatus :: SessionStatus
                                  , _ssNick :: T.Text
+                                 , _ssBroadcast :: Chan Packet
                                  }
     deriving (Show)
 
@@ -26,13 +31,17 @@ $( makeLens ''SessionState )
 type Session m = StateT SessionState m
 
 -- | The default starting state for a protocol.
-startingState :: SessionState
-startingState = SessionState Connected T.empty
+startingState :: IO SessionState
+startingState = do
+    chan <- newChan
+    return $ SessionState Connected T.empty chan
 
 -- | Repeatedly read in packets, process them, and output them.
 --   Internally holds the state required for a protocol.
 worker :: Conduit Packet (Session IO) Packet
 worker = do
+    s <- lift get
+    liftIO $ putStrLn $ "Top of pipeline: " ++ show s
     mpacket <- await
     case mpacket of
         Nothing -> liftIO $ putStrLn "No more packets!"
@@ -43,11 +52,12 @@ worker = do
             status <- lift $ access ssStatus
             unless (status == Invalid) worker
 
-protocol :: Conduit Packet IO Packet
-protocol = let
-    runner :: Session IO a -> IO a
-    runner = flip evalStateT startingState
-    in transPipe runner worker
+protocol :: Conduit Packet (Session IO) Packet
+protocol = do
+    chan <- lift $ access ssBroadcast
+    chan' <- liftIO $ dupChan chan
+    _ <- lift $ ssBroadcast ~= chan'
+    worker
 
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
 invalidate = lift $ ssStatus ~= Invalid >> return ()
