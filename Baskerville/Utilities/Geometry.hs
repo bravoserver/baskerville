@@ -1,7 +1,5 @@
 module Baskerville.Utilities.Geometry where
 
-import Data.Ord (comparing)
-
 data Coord = Coord {cx :: Float, cy :: Float, cz :: Float}
     deriving (Show, Eq, Ord)
 
