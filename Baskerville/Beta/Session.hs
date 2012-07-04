@@ -14,7 +14,7 @@ import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
 
-instance (Show a) => Show (TChan a) where
+instance Show (TChan a) where
     show _ = "TChan (...)"
 
 data SessionStatus = Invalid | Connected | Authenticated | Located
