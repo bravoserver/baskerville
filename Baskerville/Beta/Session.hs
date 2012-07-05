@@ -115,7 +115,7 @@ processPacket (HandshakePacket nick) = do
     yield $ HandshakePacket $ T.pack "-"
 
 -- | Chat packet. Broadcast it to everybody else.
-processPacket cp@(ChatPacket chat) = do
+processPacket cp@(ChatPacket _) = do
     status <- lift $ access ssStatus
     when (status == Authenticated) $ broadcast cp
 
