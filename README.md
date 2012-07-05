@@ -20,11 +20,11 @@ Get the Haskell Platform
 ------------------------
 **OSX and Windows**
 
-    [http://hackage.haskell.org/platform/](http://hackage.haskell.org/platform/)
+    http://hackage.haskell.org/platform/
 
 **Linux**
 
-    Use your package manager to install haskellplatform or the link for Windows and OSX above
+    Use your package manager to install haskell-platform or the link for Windows and OSX above also has a download for linux.
 
 Build you a Baskerville
 -----------------------
@@ -38,4 +38,4 @@ Running
 =======
 The baskerville executable will be in:
 
-    [cloned baskerville path]/dist/build/Baskerville/baskerville[.exe]
+    dist/build/Baskerville/baskerville[.exe]
