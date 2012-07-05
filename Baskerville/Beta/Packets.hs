@@ -1,6 +1,5 @@
 module Baskerville.Beta.Packets where
 
-import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Serialize
 import qualified Data.Text as T
