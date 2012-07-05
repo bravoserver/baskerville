@@ -1,11 +1,11 @@
 module Baskerville.Beta.Packets where
 
-import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
+import Debug.Trace
 
 -- From edwardk's stash-o-stuff.
 infixl 4 <$!>
@@ -164,7 +164,9 @@ instance Serialize Packet where
             0x04 -> TimePacket <$!> get
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
-            _    -> return InvalidPacket
+            _    -> do
+                let s = "Can't deal with packet " ++ show header
+                trace s $ return InvalidPacket
 
 getLoginPacket :: Get Packet
 getLoginPacket = do
