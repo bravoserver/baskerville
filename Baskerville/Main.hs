@@ -27,7 +27,7 @@ app source sink = do
     liftIO $ putStrLn "After app!"
 
 startServer :: (Session IO) ()
-startServer = runTCPServer (ServerSettings 12321 HostAny) app
+startServer = runTCPServer (ServerSettings 25565 HostAny) app
 
 main :: IO ()
 main = withSocketsDo $ do
