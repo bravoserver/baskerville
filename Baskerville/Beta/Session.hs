@@ -110,7 +110,8 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
-    _ <- lift $ ssNick ~= nick
+    let splitNick = T.takeWhile (/= ';') nick
+    _ <- lift $ ssNick ~= splitNick
     yield $ HandshakePacket $ T.pack "-"
 
 -- | Chat packet. Broadcast it to everybody else.
