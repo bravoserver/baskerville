@@ -1,12 +1,13 @@
 module Baskerville.Beta.Packets where
 
 import qualified Data.ByteString as BS
-import Data.Int
 import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Word
 import Debug.Trace
+
+import Baskerville.Coords
 
 -- From edwardk's stash-o-stuff.
 infixl 4 <$!>
@@ -202,7 +203,7 @@ data Packet = PingPacket Word32 -- 0x00
             | ChatPacket T.Text -- 0x03
             | TimePacket Word64 -- 0x04
             | EquipmentPacket Word32 Word16 Word16 Word16 -- 0x05
-            | SpawnPacket Word32 Word32 Word32 -- 0x06
+            | SpawnPacket BCoord -- 0x06
             | UsePacket Word32 Word32 Bool -- 0x07
             | UpdateHealth Word16 Word16 Float -- 0x08
             | RespawnPacket Dimension Difficulty Mode Word16 T.Text -- 0x09
@@ -284,6 +285,7 @@ instance Serialize Packet where
     put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
     put (TimePacket t) = putWord8 0x04 >> put t
+    put (SpawnPacket c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
@@ -297,6 +299,7 @@ instance Serialize Packet where
             0x02 -> HandshakePacket <$!> getUcs2
             0x03 -> ChatPacket <$!> getUcs2
             0x04 -> TimePacket <$!> get
+            0x06 -> SpawnPacket <$!> get
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
             _    -> do
