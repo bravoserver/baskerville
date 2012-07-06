@@ -5,12 +5,12 @@ A Minecraft server written in haskell.
 Features
 ========
 
-Standard Features
------------------
+Standard
+--------
 * User can join and the client gracefully times out
-    
-Extended Features
------------------
+
+Extended
+--------
 * Coming soon
 
 Build
@@ -24,7 +24,7 @@ Get the Haskell Platform
 
 **Linux**
 
-    Use your package manager to install haskell-platform or the link for Windows and OSX above also has a download for linux.
+    Use your package manager to install haskell-platform or get it at http://hackage.haskell.org/platform/
 
 Build you a Baskerville
 -----------------------
@@ -36,6 +36,6 @@ In the cloned baskerville path run:
 
 Running
 =======
-The baskerville executable will be in:
+The baskerville executable will be at:
 
     dist/build/Baskerville/baskerville[.exe]
