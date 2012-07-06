@@ -48,56 +48,17 @@ Cabal-version:       >=1.2
 Executable baskerville
   Main-is:             Baskerville/Main.hs
   Build-depends: base >= 4 && < 5
-                 , bytestring >= 0.9.2.1 && < 0.9.3
+                 , bytestring
                  , cereal
                  , cereal-conduit
-                 , conduit
+                 , conduit >= 0.4 && < 0.5
                  , data-lens
                  , data-lens-template
                  , network
-                 , network-conduit
+                 , network-conduit >= 0.4 && < 0.5
                  , stm >= 2.3
                  , text
                  , transformers
 
   -- GHC compiler flags.
   ghc-options:         -Wall -rtsopts
-
-Library
-  -- Modules exported by the library.
-  Exposed-modules:
-      Baskerville.Beta.Packets
-      Baskerville.Beta.Session
-      Baskerville.Chunk
-      Baskerville.Chunk.Generators
-      Baskerville.Coords
-      Baskerville.Simplex
-      Baskerville.Utilities.Bits
-      Baskerville.Utilities.Chat
-      Baskerville.Utilities.Geometry
-
-  -- Packages needed in order to build this package.
-  Build-depends: base >= 4 && < 5
-                 , array
-                 , bytestring >= 0.9.2.1 && < 0.9.3
-                 , cereal
-                 , cereal-conduit
-                 , conduit
-                 , data-lens
-                 , data-lens-template
-                 , MonadRandom
-                 , network
-                 , network-conduit
-                 , stm >= 2.3
-                 , random-shuffle
-                 , text
-                 , transformers
-
-  -- Modules not exported by this package.
-  -- Other-modules:
-
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:
-
-  -- GHC compiler flags.
-  ghc-options:         -Wall
