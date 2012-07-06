@@ -1,6 +1,7 @@
 module Baskerville.Beta.Packets where
 
 import qualified Data.ByteString as BS
+import Data.Int
 import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -172,13 +173,13 @@ instance Serialize PaintDirection where
             0x01 -> PNegX
             _    -> PNegZ
 
--- | Pack a text string into a UCS2 length-prefixed string.
-bUcs2 :: T.Text -> BS.ByteString
-bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
-
 -- | Pack a big-endian short.
 bWord16 :: Word16 -> BS.ByteString
 bWord16 = encode
+
+-- | Pack a text string into a UCS2 length-prefixed string.
+bUcs2 :: T.Text -> BS.ByteString
+bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
 
 putUcs2 :: Putter T.Text
 putUcs2 = putByteString . bUcs2
