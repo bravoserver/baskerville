@@ -138,7 +138,20 @@ instance Serialize Action where
     -- | Should be made exhaustive, not sure which to default to.
 
 -- | Objects and Vehicles
-data ObVehicle = BoatOb | MinecartOb | MinecartStorageOb | MinecartPoweredOb | TNTOb | EnderCrystalOb | ArrowOb | SnowballOb | EggOb | SandOb | GravelOb | EyeOfEnderOb | DragonEggOb | FishingFloatOb
+data ObVehicle = BoatOb
+               | MinecartOb
+               | MinecartStorageOb
+               | MinecartPoweredOb
+               | TNTOb
+               | EnderCrystalOb
+               | ArrowOb
+               | SnowballOb
+               | EggOb
+               | SandOb
+               | GravelOb
+               | EyeOfEnderOb
+               | DragonEggOb
+               | FishingFloatOb
     deriving (Eq, Show)
 
 -- | ObVehicle probably needs a rename, but more importantly...serialization
