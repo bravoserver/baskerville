@@ -224,7 +224,7 @@ data Packet = PingPacket Word32 -- 0x00
             -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 -- 0x17
             -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 Word16 Word16 Word16 -- 0x17
             -- | SpawnMobPacket Word32 Mob Word32 Word32 Word32 Word8 Word8 Word8 Metadata -- 0x18
-            | SpawnPaintingPacket Word32 T.Text Word32 Word32 Word32 PaintDirection -- 0x19
+            | SpawnPaintingPacket Word32 T.Text BCoord PaintDirection -- 0x19
             | SpawnExperiencePacket Word32 Word32 Word32 Word32 Word16 -- 0x1A
             | VelocityPacket Word32 Word16 Word16 Word16 -- 0x1C
             | DestroyEntityPacket Word32 -- 0x1D
