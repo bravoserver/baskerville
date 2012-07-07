@@ -9,6 +9,7 @@ import Debug.Trace
 
 import Baskerville.Coords
 import Baskerville.Chunk
+import Baskerville.Location
 
 -- From edwardk's stash-o-stuff.
 infixl 4 <$!>
@@ -209,9 +210,9 @@ data Packet = PingPacket Word32 -- 0x00
             | UpdateHealth Word16 Word16 Float -- 0x08
             | RespawnPacket Dimension Difficulty Mode Word16 T.Text -- 0x09
             | AirbornePacket Airborne -- 0x0A | Known as Player on kev009
-            | PositionPacket Double Double Double Double Airborne -- 0x0B
-            | LookPacket Float Float Airborne -- 0x0C
-            | PositionAndLookPacket Double Double Double Double Float Float Airborne -- 0x0D
+            | PositionPacket Position Airborne -- 0x0B
+            | OrientationPacket Orientation Airborne -- 0x0C
+            | LocationPacket Position Orientation Airborne -- 0x0D
             | DiggingPacket DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlockPacket WorldDirection Word8 Word32 Word8 Slot -- 0x0F
             | SlotSelectionPacket Word16 -- 0x10
@@ -288,6 +289,9 @@ instance Serialize Packet where
     put (TimePacket t) = putWord8 0x04 >> put t
     put (SpawnPacket c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
+    put (PositionPacket p a) = putWord8 0x0b >> put p >> put a
+    put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
+    put (LocationPacket p o a) = putWord8 0x0d >> put p >> put o >> put a
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
     put _ = putByteString BS.empty
