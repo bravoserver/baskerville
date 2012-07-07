@@ -8,6 +8,7 @@ import Data.Word
 import Debug.Trace
 
 import Baskerville.Coords
+import Baskerville.Chunk
 
 -- From edwardk's stash-o-stuff.
 infixl 4 <$!>
@@ -241,7 +242,7 @@ data Packet = PingPacket Word32 -- 0x00
             | EndEntityEffectPacket Word32 Word8 -- 0x2A
             | SetExperiencePacket Float Word16 Word16 -- 0x2B
             | AllocChunkPacket Word32 Word32 Bool -- 0x32
-            -- | ChunkPacket Word32 Word32 Word8 Word16 Word16 Word32 Word32 ChunkData -- 0x33
+            | ChunkPacket Chunk Bool Word16 Word16 Word32 Word32 -- 0x33
             -- | MultiBlockChangePacket Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
             | BlockChangePacket Word32 Word8 Word32 Word8 Word8 -- 0x35
             -- | BlockActionPacket Word32 Word16 Word32 BlockAction BlockAction -- 0x36
