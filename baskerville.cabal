@@ -49,10 +49,11 @@ Executable baskerville
   Main-is:             Baskerville/Main.hs
   Build-depends: base >= 4 && < 5
                  , array
-                 , bytestring
+                 , bytestring >= 0.9.2.1 && < 0.9.3
                  , cereal
                  , cereal-conduit
                  , conduit >= 0.4 && < 0.5
+                 , containers
                  , data-lens
                  , data-lens-template
                  , network
@@ -60,6 +61,7 @@ Executable baskerville
                  , stm >= 2.3
                  , text
                  , transformers
+                 , zlib
 
   -- GHC compiler flags.
   ghc-options:         -Wall -rtsopts
