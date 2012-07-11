@@ -69,15 +69,16 @@ newArray = let boundaries = (BCoord 0 0 0, BCoord 16 16 16)
 newChunk :: Int32 -> Int32 -> Chunk
 newChunk x z = Chunk x z IM.empty
 
-type Generator = Int -> MicroChunk -> MicroChunk
+type Generator = Int -> Maybe MicroChunk -> Maybe MicroChunk
+
+pureGenerator :: (Int -> MicroChunk -> MicroChunk) -> Generator
+pureGenerator g i = fmap $ g i
 
 -- | Run a generator on a given chunk.
 runGenerator :: Generator -> Chunk -> Chunk
 runGenerator g chunk = let
     l :: Int -> Lens Chunk (Maybe MicroChunk)
     l x = intMapLens x . cBlocks
-    mg :: Int -> Maybe MicroChunk -> Maybe MicroChunk
-    mg i = fmap $ g i
     f :: Int -> Chunk -> Chunk
-    f i = modL (l i) (mg i)
+    f i = modL (l i) (g i)
     in foldr f chunk [0..15]
