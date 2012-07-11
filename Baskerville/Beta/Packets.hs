@@ -245,7 +245,7 @@ data Packet = PingPacket Word32 -- 0x00
             | EndEntityEffectPacket Word32 Word8 -- 0x2A
             | SetExperiencePacket Float Word16 Word16 -- 0x2B
             | AllocChunkPacket Word32 Word32 Bool -- 0x32
-            | ChunkPacket Chunk Bool Word16 Word16 Word32 Word32 -- 0x33
+            | ChunkPacket Chunk -- 0x33
             -- | MultiBlockChangePacket Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
             | BlockChangePacket Word32 Word8 Word32 Word8 Word8 -- 0x35
             -- | BlockActionPacket Word32 Word16 Word32 BlockAction BlockAction -- 0x36
@@ -294,6 +294,7 @@ instance Serialize Packet where
     put (PositionPacket p a) = putWord8 0x0b >> put p >> put a
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
     put (LocationPacket p o a) = putWord8 0x0d >> put p >> put o >> put a
+    put (ChunkPacket c) = putWord8 0x33 >> put c
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
     put _ = putByteString BS.empty
@@ -307,6 +308,7 @@ instance Serialize Packet where
             0x03 -> ChatPacket <$!> getUcs2
             0x04 -> TimePacket <$!> get
             0x06 -> SpawnPacket <$!> get
+            0x33 -> ChunkPacket <$!> get
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
             _    -> do
