@@ -85,7 +85,7 @@ data Face = YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
 
 instance Serialize Face where
     put = putWord8 . toEnum . fromEnum
-    get = getWord8 >>= return . toEnum . fromEnum
+    get = fmap (toEnum . fromEnum) getWord8
 
 data Item = Item { primary :: Word16, secondary :: Word16, quantity :: Word8 }
     deriving (Eq, Show)
