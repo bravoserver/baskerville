@@ -15,17 +15,22 @@ plane array y value = let
     in sequence_ $ zipWith3 writeArray as ixs vs
 
 -- | Ensure that the chunk has safety features enabled.
-safety :: ChunkArray -> ChunkArray
-safety ca = runSTArray $ do
-    a <- thaw ca
-    plane a 0 1
-    plane a 126 0
-    plane a 127 0
-    return a
+safety :: Generator
+safety i mmc = case mmc of
+    Nothing -> Nothing
+    Just (MicroChunk ca) -> case i of
+        0x0 -> Just . MicroChunk $ runSTArray $ do
+            a <- thaw ca
+            plane a 0x0 0x1
+            return a
+        0xf -> Just . MicroChunk $ runSTArray $ do
+            a <- thaw ca
+            plane a 0xe 0x0
+            plane a 0xf 0x0
+            return a
 
 -- | Put some boring things into the chunk.
-boring :: ChunkArray -> ChunkArray
-boring ca = runSTArray $ do
-    a <- thaw ca
-    sequence_ $ zipWith3 writeArray (repeat a) (range (BCoord 0 0 0, BCoord 15 15 63)) (repeat 2)
-    return a
+boring :: Generator
+boring i _
+    | i < 8 = Just . MicroChunk $ newFilledArray 0x2
+    | otherwise = Nothing

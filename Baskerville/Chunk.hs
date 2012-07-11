@@ -60,10 +60,15 @@ instance Serialize Chunk where
 
     get = error "Can't get ye chunk!"
 
+-- | Create a new array with a given value.
+newFilledArray :: Word8 -> ChunkArray
+newFilledArray x = let
+    boundaries = (BCoord 0 0 0, BCoord 16 16 16)
+    in array boundaries [(i, x) | i <- range boundaries]
+
 -- | Create a zeroed-out chunk array.
 newArray :: ChunkArray
-newArray = let boundaries = (BCoord 0 0 0, BCoord 16 16 16)
-    in array boundaries [(i, 0) | i <- range boundaries]
+newArray = newFilledArray 0x0
 
 -- | Create a chunk at the given chunk coordinates.
 newChunk :: Int32 -> Int32 -> Chunk
