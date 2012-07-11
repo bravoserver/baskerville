@@ -139,7 +139,9 @@ instance Serialize Action where
             0x03 -> ExitBedAct
             0x04 -> SprintAct
             0x05 -> UnSprintAct
-    -- | Should be made exhaustive, not sure which to default to.
+            -- We choose to make uncrouching the default, since it is nearly
+            -- always harmless.
+            _    -> UncrouchAct
 
 -- | Objects and Vehicles
 data ObVehicle = BoatOb
