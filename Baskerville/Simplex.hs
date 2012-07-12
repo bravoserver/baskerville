@@ -25,11 +25,14 @@ g2 :: Double
 g2 = (3 - sqrt 3) / 6
 
 -- | The size of a field.
-size :: Integer
+size :: Int
 size = 1024
 
-field :: (MonadRandom m) => m [Integer]
+field :: (MonadRandom m) => m [Int]
 field = shuffleM [0 .. (size - 1)]
+
+(!!!) :: [a] -> Int -> a
+xs !!! i = xs !! (i `mod` size)
 
 -- | Squish 2D coords onto a simplex grid.
 --   Returns a tuple of the ints for array lookups, and the fractional parts
@@ -49,16 +52,25 @@ coords2 x y = if x > y
 
 -- | Interpolator for 2D coords.
 t2 :: (Fractional a) => a -> a -> a
-t2 x y = 0.5 - (x^2) - (y^2)
+t2 x y = 0.5 - (x^2 + y^2)
 
 n2 :: (Fractional a, Ord a) => (a, a) -> Int -> a
-n2 (x, y) g = let t = t2 x y in
-    if t > 0 then (t^4) * dot [x, y] (map fromIntegral $ edge2 g) else 0
+n2 (x, y) g = let
+    t = t2 x y
+    edge = map fromIntegral $ edge2 g
+    in if t > 0 then (t^4) * dot [x, y] edge else 0
 
 simplex2 :: (MonadRandom m) => Double -> Double -> m Double
 simplex2 sx sy = let
     (i, j, dx, dy) = squish2 sx sy
     coords = coords2 dx dy
-    gradients = []
-    n = sum $ zipWith n2 coords gradients
-    in undefined
+    in do
+        p <- field
+        let g1 = p !!! (i + p !!! j)
+        let g2 = if dx > dy
+            then p !!! (i + 1 + p !!! j)
+            else p !!! (i + p !!! (j + 1))
+        let g3 = p !!! (i + 1 + p !!! (j + 1))
+        let gradients = [g1, g2, g3]
+        let n = sum $ zipWith n2 coords gradients
+        return $ n * 70
