@@ -83,4 +83,4 @@ octaves2 depth seed sx sy = let
     f d = simplex2 seed (sx * d) (sy * d) / d
     l = iterate (2 *) 1
     scale = 2 ^ depth / 2 ^ (depth + 1) - 1
-    in scale * (sum $ take depth $ map f l)
+    in scale * sum (take depth $ map f l)

@@ -12,11 +12,10 @@ dim = 800 :: Int
 
 progress x total = let
     l = concat $ iterate (map (10 *)) [1, 2, 4, 5, 8]
-    whether = x == (head $ dropWhile (< x) l)
+    whether = x == head (dropWhile (< x) l)
     percent = fromIntegral x * 100.0 / fromIntegral total :: Double
     s = "Status: " ++ show x ++ "/" ++ show total ++ printf " (%.2f%%)" percent
-    in do
-        when whether $ putStrLn s
+    in when whether $ putStrLn s
 
 main = let
     total = dim * dim
@@ -29,9 +28,9 @@ main = let
         hPutStrLn handle "P2"
         hPutStrLn handle $ show dim ++ " " ++ show dim
         hPutStrLn handle "255"
-        forM [0..(dim - 1)] $ \x -> do
+        forM_ [0..(dim - 1)] $ \x -> do
             let fx = fromIntegral x
-            forM [0..(dim - 1)] $ \y -> do
+            forM_ [0..(dim - 1)] $ \y -> do
                 let fy = fromIntegral y
                 let fdim = fromIntegral dim
                 let pix = octaves2 5 0 (fx * sx / fdim) (fy * sy / fdim)
