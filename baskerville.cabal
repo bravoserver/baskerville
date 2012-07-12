@@ -56,8 +56,10 @@ Executable baskerville
                  , containers
                  , data-lens
                  , data-lens-template
+                 , data-memocombinators
                  , network
                  , network-conduit >= 0.4 && < 0.5
+                 , random-shuffle
                  , stm >= 2.3
                  , text
                  , transformers

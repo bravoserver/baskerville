@@ -2,6 +2,7 @@ module Baskerville.Simplex where
 
 import Control.Monad.Random
 import Data.List
+import qualified Data.MemoCombinators as Memo
 import System.Random.Shuffle
 
 -- | The edges of a two-dimensional simplex field.
@@ -28,8 +29,11 @@ g2 = (3 - sqrt 3) / 6
 size :: Int
 size = 1024
 
-field :: (MonadRandom m) => m [Int]
-field = shuffleM [0 .. (size - 1)]
+field :: Int -> [Int]
+field = Memo.integral $ \i -> let
+    l = [0 .. (size - 1)]
+    g = mkStdGen i
+    in shuffle' l size g
 
 (!!!) :: [a] -> Int -> a
 xs !!! i = xs !! (i `mod` size)
@@ -60,17 +64,16 @@ n2 (x, y) g = let
     edge = map fromIntegral $ edge2 g
     in if t > 0 then (t^4) * dot [x, y] edge else 0
 
-simplex2 :: (MonadRandom m) => Double -> Double -> m Double
-simplex2 sx sy = let
+simplex2 :: Int -> Double -> Double -> Double
+simplex2 seed sx sy = let
     (i, j, dx, dy) = squish2 sx sy
     coords = coords2 dx dy
-    in do
-        p <- field
-        let g1 = p !!! (i + p !!! j)
-        let g2 = if dx > dy
-            then p !!! (i + 1 + p !!! j)
-            else p !!! (i + p !!! (j + 1))
-        let g3 = p !!! (i + 1 + p !!! (j + 1))
-        let gradients = [g1, g2, g3]
-        let n = sum $ zipWith n2 coords gradients
-        return $ n * 70
+    p = field seed
+    g1 = p !!! (i + p !!! j)
+    g2 = if dx > dy
+        then p !!! (i + 1 + p !!! j)
+        else p !!! (i + p !!! (j + 1))
+    g3 = p !!! (i + 1 + p !!! (j + 1))
+    gradients = [g1, g2, g3]
+    n = sum $ zipWith n2 coords gradients
+    in n * 70
