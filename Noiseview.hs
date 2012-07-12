@@ -15,7 +15,7 @@ main = do
     putStrLn "255"
     forM [0..511] $ \x -> do
         forM [0..511] $ \y -> do
-            let pix = simplex2 0 (x * sx / 512) (y * sy / 512)
+            let pix = octaves2 5 0 (x * sx / 512) (y * sy / 512)
             let adjusted = floor $ (pix + 1) * 127.5
             putStr $ show adjusted ++ " "
         putStrLn " "

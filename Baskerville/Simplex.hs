@@ -77,3 +77,9 @@ simplex2 seed sx sy = let
     gradients = [g1, g2, g3]
     n = sum $ zipWith n2 coords gradients
     in n * 70
+
+octaves2 :: Int -> Int -> Double -> Double -> Double
+octaves2 depth seed sx sy = let
+    f d = simplex2 seed (sx * d) (sy * d) / d
+    l = iterate (2 *) 1
+    in sum $ take depth $ map f l
