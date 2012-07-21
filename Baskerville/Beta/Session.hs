@@ -99,14 +99,15 @@ processPacket (PingPacket _) = yield $ PingPacket 0
 
 -- | Login. Examine all of the bits, make sure they match, and then reply in
 --   kind.
-processPacket (LoginPacket protoVersion _ _ _ _ _ _ _) =
+processPacket (LoginPacket protoVersion _ _ _ _ _ _) =
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
     if protoVersion /= 29
         then errorOut "Unsupported protocol"
         else do
             _ <- lift $ ssStatus ~= Authenticated
-            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth Peaceful 0 10
+            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth
+                Peaceful 10
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
