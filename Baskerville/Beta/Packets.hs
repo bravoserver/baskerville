@@ -281,8 +281,8 @@ instance Serialize Packet where
         put a
         putUcs2 b
         putUcs2 c
-        put d
-        put e
+        putWord32be $ (toEnum . fromEnum) d
+        putWord32be $ (toEnum . fromEnum) e
         put f
         putWord8 0x00 -- Unused field, should always be 0x0
         put g
@@ -320,10 +320,12 @@ getLoginPacket = do
     protocol <- get
     username <- getUcs2
     levelType <- getUcs2
-    mode <- get
-    dimension <- get
+    mode <- getWord32be
+    dimension <- getWord32be
     difficulty <- get
     _ <- getWord8
     players <- get
-    return $! LoginPacket protocol username levelType mode dimension difficulty
-        players
+    let mode' = toEnum . fromEnum $ mode
+    let dimension' = toEnum . fromEnum $ dimension
+    return $! LoginPacket protocol username levelType mode' dimension'
+        difficulty players
