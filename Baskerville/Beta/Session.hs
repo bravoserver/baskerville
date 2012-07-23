@@ -75,8 +75,8 @@ protocol = do
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
 invalidate = lift $ ssStatus ~= Invalid >> return ()
 
-errorOut :: (Monad m) => String -> Conduit Packet (Session m) Packet
-errorOut s = invalidate >> yield (ErrorPacket $ T.pack s)
+kick :: (Monad m) => String -> Conduit Packet (Session m) Packet
+kick s = yield (ErrorPacket $ T.pack s) >> invalidate
 
 -- | Broadcast to everybody.
 broadcast :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
@@ -103,7 +103,7 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _) =
     -- Is the protocol invalid? Kick the client with an unsupported-protocol
     -- message.
     if protoVersion /= 29
-        then errorOut "Unsupported protocol"
+        then kick "Unsupported protocol"
         else do
             _ <- lift $ ssStatus ~= Authenticated
             yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth
@@ -121,7 +121,7 @@ processPacket cp@(ChatPacket _) = do
     when (status == Authenticated) $ broadcast cp
 
 -- | A poll. Reply with a formatted error packet and close the connection.
-processPacket PollPacket = errorOut "Baskerville§0§1"
+processPacket PollPacket = kick "Baskerville§0§1"
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
@@ -129,4 +129,4 @@ processPacket PollPacket = errorOut "Baskerville§0§1"
 processPacket (ErrorPacket _) = invalidate
 
 -- | A packet which we don't handle. Kick the client, we're wasting time here.
-processPacket _ = invalidate
+processPacket _ = kick "I refuse to handle this packet."
