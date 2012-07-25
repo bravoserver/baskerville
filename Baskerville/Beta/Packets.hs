@@ -1,5 +1,6 @@
 module Baskerville.Beta.Packets where
 
+import Control.Applicative
 import qualified Data.ByteString as BS
 import Data.Serialize
 import qualified Data.Text as T
@@ -308,6 +309,7 @@ instance Serialize Packet where
             0x03 -> ChatPacket <$!> getUcs2
             0x04 -> TimePacket <$!> get
             0x06 -> SpawnPacket <$!> get
+            0x0d -> LocationPacket <$!> get <*> get <*> get
             0x33 -> ChunkPacket <$!> get
             0xfe -> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
