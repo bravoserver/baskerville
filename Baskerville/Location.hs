@@ -3,7 +3,7 @@
 module Baskerville.Location where
 
 import Control.Applicative
-import Data.Lens.Template
+import Control.Lens.TH
 import Data.Serialize
 
 data Position = Position { _px, _py, _pstance, _pz :: Double }
@@ -22,6 +22,8 @@ instance Serialize Position where
         z <- getFloat64be
         return $ Position x y stance z
 
+makeLenses Position
+
 data Orientation = Orientation { _oyaw, _opitch :: Float }
     deriving (Eq, Show)
 
@@ -29,4 +31,4 @@ instance Serialize Orientation where
     put (Orientation yaw pitch) = putFloat32be yaw >> putFloat32be pitch
     get = Orientation <$> getFloat32be <*> getFloat32be
 
-$( makeLenses [''Position, ''Orientation] )
+makeLenses Orientation
