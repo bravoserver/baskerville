@@ -3,13 +3,12 @@
 module Baskerville.Beta.Session where
 
 import Control.Concurrent.STM
+import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Data.Conduit
-import Data.Lens.Lazy
-import Data.Lens.Template
 import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
@@ -26,7 +25,7 @@ data SessionState = SessionState { _ssStatus :: SessionStatus
                                  }
     deriving (Show)
 
-$( makeLens ''SessionState )
+makeLenses ''SessionState
 
 type Session m = StateT SessionState m
 
@@ -52,7 +51,7 @@ worker :: Conduit Packet (Session IO) Packet
 worker = do
     s <- lift get
     liftIO $ putStrLn $ "Top of pipeline: " ++ show s
-    chan <- lift $ access ssBroadcast
+    chan <- lift $ use ssBroadcast
     opackets <- lift . lift . atomically $ yieldChan chan
     mapM_ yield opackets
     mpacket <- await
@@ -62,18 +61,18 @@ worker = do
         Just packet -> do
             liftIO $ putStrLn $ "Got a " ++ show packet ++ " packet!"
             processPacket packet
-            status <- lift $ access ssStatus
+            status <- lift $ use ssStatus
             unless (status == Invalid) worker
 
 protocol :: Conduit Packet (Session IO) Packet
 protocol = do
-    chan <- lift $ access ssBroadcast
+    chan <- lift $ use ssBroadcast
     chan' <- liftIO . atomically $ dupTChan chan
-    _ <- lift $ ssBroadcast ~= chan'
+    _ <- lift $ ssBroadcast .= chan'
     worker
 
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
-invalidate = lift $ ssStatus ~= Invalid >> return ()
+invalidate = lift $ ssStatus .= Invalid >> return ()
 
 kick :: (Monad m) => String -> Conduit Packet (Session m) Packet
 kick s = yield (ErrorPacket $ T.pack s) >> invalidate
@@ -81,7 +80,7 @@ kick s = yield (ErrorPacket $ T.pack s) >> invalidate
 -- | Broadcast to everybody.
 broadcast :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
 broadcast packet = do
-    chan <- lift $ access ssBroadcast
+    chan <- lift $ use ssBroadcast
     liftIO . atomically $ writeTChan chan packet
 
 -- | The main entry point for a protocol.
@@ -105,19 +104,19 @@ processPacket (LoginPacket protoVersion _ _ _ _ _ _) =
     if protoVersion /= 29
         then kick "Unsupported protocol"
         else do
-            _ <- lift $ ssStatus ~= Authenticated
+            _ <- lift $ ssStatus .= Authenticated
             yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth
                 Peaceful 10
 
 -- | Handshake. Just write down the username.
 processPacket (HandshakePacket nick) = do
     let splitNick = T.takeWhile (/= ';') nick
-    _ <- lift $ ssNick ~= splitNick
+    _ <- lift $ ssNick .= splitNick
     yield $ HandshakePacket $ T.pack "-"
 
 -- | Chat packet. Broadcast it to everybody else.
 processPacket cp@(ChatPacket _) = do
-    status <- lift $ access ssStatus
+    status <- lift $ use ssStatus
     when (status == Authenticated) $ broadcast cp
 
 -- | A poll. Reply with a formatted error packet and close the connection.

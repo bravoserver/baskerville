@@ -4,7 +4,7 @@ module Baskerville.Coords where
 
 import Data.Int
 import Data.Ix
-import Data.Lens.Template
+import Control.Lens.TH
 import Data.Serialize
 
 -- | Block coordinates.
@@ -19,4 +19,4 @@ instance Serialize BCoord where
         z <- get
         return $ BCoord x z y
 
-$( makeLens ''BCoord )
+makeLenses ''BCoord

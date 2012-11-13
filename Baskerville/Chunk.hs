@@ -2,18 +2,14 @@
 
 module Baskerville.Chunk where
 
-import Prelude hiding ((.))
-
-import Control.Category
 import Codec.Compression.Zlib
+import Control.Lens
 import Data.Array
 import Data.Bits
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Int
 import qualified Data.IntMap as IM
-import Data.Lens.Common
-import Data.Lens.Template
 import Data.Serialize
 import Data.Word
 
@@ -27,7 +23,7 @@ newtype MicroChunk = MicroChunk { getMicroChunk :: ChunkArray }
 data Chunk = Chunk { _cX, _cZ :: Int32, _cBlocks :: IM.IntMap MicroChunk }
     deriving (Eq, Show)
 
-$( makeLens ''Chunk )
+makeLenses ''Chunk
 
 instance Serialize MicroChunk where
     put _ = do
@@ -82,8 +78,6 @@ pureGenerator g i = fmap $ g i
 -- | Run a generator on a given chunk.
 runGenerator :: Generator -> Chunk -> Chunk
 runGenerator g chunk = let
-    l :: Int -> Lens Chunk (Maybe MicroChunk)
-    l x = intMapLens x . cBlocks
     f :: Int -> Chunk -> Chunk
-    f i = modL (l i) (g i)
+    f i = cBlocks %~ IM.alter (g i) i
     in foldr f chunk [0..15]
