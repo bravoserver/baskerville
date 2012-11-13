@@ -72,7 +72,7 @@ protocol = do
     worker
 
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
-invalidate = lift $ ssStatus .= Invalid >> return ()
+invalidate = lift $ ssStatus .= Invalid
 
 kick :: (Monad m) => String -> Conduit Packet (Session m) Packet
 kick s = yield (ErrorPacket $ T.pack s) >> invalidate
