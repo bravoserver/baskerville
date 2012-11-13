@@ -10,15 +10,15 @@ import Baskerville.Beta.Conduits
 import Baskerville.Beta.Session
 
 app :: Application (Session IO)
-app source sink = do
+app appdata = do
     liftIO $ putStrLn "Before app..."
-    let pSource = source $= bsToPackets
-    let pSink = packetsToBs =$ sink
+    let pSource = appSource appdata $= bsToPackets
+    let pSink = packetsToBs =$ appSink appdata
     pSource $$ protocol =$ pSink
     liftIO $ putStrLn "After app!"
 
 startServer :: (Session IO) ()
-startServer = runTCPServer (ServerSettings 25565 HostAny) app
+startServer = runTCPServer (serverSettings 25565 HostAny) app
 
 main :: IO ()
 main = withSocketsDo $ do
