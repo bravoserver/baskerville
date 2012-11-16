@@ -206,7 +206,7 @@ data Packet = PingPacket Word32 -- 0x00
             | LoginPacket Word32 T.Text Mode Dimension Difficulty Word8 -- 0x01
             | HandshakePacket T.Text T.Text Word32 -- 0x02
             | ChatPacket T.Text -- 0x03
-            | TimePacket Word64 -- 0x04
+            | TimePacket Word64 Word64 -- 0x04
             | EquipmentPacket Word32 Word16 Word16 Word16 -- 0x05
             | SpawnPacket BCoord -- 0x06
             | UsePacket Word32 Word32 Bool -- 0x07
@@ -289,7 +289,7 @@ instance Serialize Packet where
     put hp@(HandshakePacket{}) =
         error $ "Can't put HandshakePacket " ++ show hp
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
-    put (TimePacket t) = putWord8 0x04 >> put t
+    put (TimePacket a t) = putWord8 0x04 >> put a >> put t
     put (SpawnPacket c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
     put (PositionPacket p a) = putWord8 0x0b >> put p >> put a
@@ -312,7 +312,7 @@ instance Serialize Packet where
                 port <- get
                 return $! HandshakePacket username host port
             0x03 -> ChatPacket <$!> getUcs2
-            0x04 -> TimePacket <$!> get
+            -- 0x04 S->C only
             0x06 -> SpawnPacket <$!> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
             0x33 -> ChunkPacket <$!> get
