@@ -179,6 +179,16 @@ instance Serialize PaintDirection where
             0x01 -> PNegX
             _    -> PNegZ
 
+-- | Newtype for EIDs.
+newtype EID = EID { unEID :: Word32 }
+    deriving (Eq, Show)
+
+-- Just write out the instance by hand; it's not that big of a deal and GNTD
+-- is not safe.
+instance Serialize EID where
+    put (EID eid) = put eid
+    get = EID <$!> get
+
 -- | Pack a big-endian short.
 bWord16 :: Word16 -> BS.ByteString
 bWord16 = encode
@@ -203,13 +213,13 @@ getUcs2 = do
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32 -- 0x00
-            | LoginPacket Word32 T.Text Mode Dimension Difficulty Word8 -- 0x01
+            | LoginPacket EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | HandshakePacket T.Text T.Text Word32 -- 0x02
             | ChatPacket T.Text -- 0x03
             | TimePacket Word64 Word64 -- 0x04
-            | EquipmentPacket Word32 Word16 Word16 Word16 -- 0x05
+            | EquipmentPacket EID Word16 Word16 Word16 -- 0x05
             | SpawnPacket BCoord -- 0x06
-            | UsePacket Word32 Word32 Bool -- 0x07
+            | UsePacket EID EID Bool -- 0x07
             | UpdateHealth Word16 Word16 Float -- 0x08
             | RespawnPacket Dimension Difficulty Mode Word16 T.Text -- 0x09
             | AirbornePacket Airborne -- 0x0A | Known as Player on kev009
@@ -219,31 +229,31 @@ data Packet = PingPacket Word32 -- 0x00
             | DiggingPacket DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlockPacket WorldDirection Word8 Word32 Word8 Slot -- 0x0F
             | SlotSelectionPacket Word16 -- 0x10
-            | UseBedPacket Word32 Word8 Word32 Word8 Word32 -- 0x11
-            | AnimationPacket Word32 Animation -- 0x12
-            | ActionPacket Word32 Action -- 0x13
-            | SpawnNamedPacket Word32 T.Text Word32 Word32 Word32 Word8 Word8 Item -- 0x14
-            | SpawnDroppedPacket Word32 Item Word8 Word16 Word32 Word32 Word32 Word8 Word8 Word8 -- 0x15
-            | CollectItemPacket Word32 Word32 -- 0x16
+            | UseBedPacket EID Word8 Word32 Word8 Word32 -- 0x11
+            | AnimationPacket EID Animation -- 0x12
+            | ActionPacket EID Action -- 0x13
+            | SpawnNamedPacket EID T.Text Word32 Word32 Word32 Word8 Word8 Item -- 0x14
+            | SpawnDroppedPacket EID Item Word8 Word16 Word32 Word32 Word32 Word8 Word8 Word8 -- 0x15
+            | CollectItemPacket EID EID -- 0x16
             -- Two 0x17 possibilities
             -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 -- 0x17
             -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 Word16 Word16 Word16 -- 0x17
             -- | SpawnMobPacket Word32 Mob Word32 Word32 Word32 Word8 Word8 Word8 Metadata -- 0x18
-            | SpawnPaintingPacket Word32 T.Text BCoord PaintDirection -- 0x19
-            | SpawnExperiencePacket Word32 Word32 Word32 Word32 Word16 -- 0x1A
-            | VelocityPacket Word32 Word16 Word16 Word16 -- 0x1C
-            | DestroyEntityPacket Word32 -- 0x1D
-            | EntityPacket Word32 -- 0x1E
-            | RelativeMovePacket Word32 Word8 Word8 Word8 -- 0x1F
-            | EntityLookPacket Word32 Word8 Word8 -- 0x20
-            | EntityLookMovePacket Word32 Word8 Word8 Word8 Word8 Word8 -- 0x21
-            | EntityTeleportPacket Word32 Word32 Word32 Word32 Word8 Word8 -- 0x22
-            | EntityHeadLookPacket Word32 Word8 -- 0x23
-            -- | EntityStatus Word32 Status -- 0x26
-            | EntityAttachPacket Word32 Word32 -- 0x27
-            -- | EntityMetadataPacket Word32 Metadata -- 0x28
-            | EntityEffectPacket Word32 Word8 Word8 Word16 -- 0x29
-            | EndEntityEffectPacket Word32 Word8 -- 0x2A
+            | SpawnPaintingPacket EID T.Text BCoord PaintDirection -- 0x19
+            | SpawnExperiencePacket EID Word32 Word32 Word32 Word16 -- 0x1A
+            | VelocityPacket EID Word16 Word16 Word16 -- 0x1C
+            | DestroyEntityPacket [EID] -- 0x1D
+            | EntityPacket EID -- 0x1E
+            | RelativeMovePacket EID Word8 Word8 Word8 -- 0x1F
+            | EntityLookPacket EID Word8 Word8 -- 0x20
+            | EntityLookMovePacket EID Word8 Word8 Word8 Word8 Word8 -- 0x21
+            | EntityTeleportPacket EID Word32 Word32 Word32 Word8 Word8 -- 0x22
+            | EntityHeadLookPacket EID Word8 -- 0x23
+            -- | EntityStatus EID Status -- 0x26
+            | EntityAttachPacket EID Word32 -- 0x27
+            -- | EntityMetadataPacket EID Metadata -- 0x28
+            | EntityEffectPacket EID Word8 Word8 Word16 -- 0x29
+            | EndEntityEffectPacket EID Word8 -- 0x2A
             | SetExperiencePacket Float Word16 Word16 -- 0x2B
             | AllocChunkPacket Word32 Word32 Bool -- 0x32
             | ChunkPacket Chunk -- 0x33
@@ -253,7 +263,7 @@ data Packet = PingPacket Word32 -- 0x00
             -- | ExplosionPacket Double Double Double Float Word32 [Record] -- 0x3C
             -- | SoundParticleEffectPacket Word32 Word32 Word8 Word32 EffectData -- 0x3D
             -- | GameStateChangePacket Reason Difficulty -- 0x46
-            | ThunderboltPacket Word32 Word8 Word32 Word32 Word32 -- 0x47
+            | ThunderboltPacket EID Word8 Word32 Word32 Word32 -- 0x47
             | WindowOpenPacket Word8 Word8 T.Text Word8 -- 0x64
             | WindowClosePacket Word8 -- 0x65
             -- | WindowClickPacket Word8 Word16 Word8 Word16 Bool Slot -- 0x66

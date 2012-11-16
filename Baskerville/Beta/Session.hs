@@ -96,7 +96,7 @@ processPacket (PingPacket _) = yield $ PingPacket 0
 -- | Handshake. Reply with a login.
 processPacket (HandshakePacket nick _ _) = do
     _ <- lift $ ssNick .= nick
-    yield $ LoginPacket 1 (T.pack "default") Creative Earth Peaceful 10
+    yield $ LoginPacket (EID 1) (T.pack "default") Creative Earth Peaceful 10
 
 -- | Chat packet. Broadcast it to everybody else.
 processPacket cp@(ChatPacket _) = broadcast cp
