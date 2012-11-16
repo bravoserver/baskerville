@@ -16,10 +16,7 @@ import Baskerville.Beta.Packets
 instance Show (TChan a) where
     show _ = "TChan (...)"
 
-data SessionStatus = Invalid | Connected | Authenticated | Located
-   deriving (Eq, Show)
-
-data SessionState = SessionState { _ssStatus :: SessionStatus
+data SessionState = SessionState { _ssValid :: Bool
                                  , _ssNick :: T.Text
                                  , _ssBroadcast :: TChan Packet
                                  }
@@ -33,7 +30,7 @@ type Session m = StateT SessionState m
 startingState :: IO SessionState
 startingState = atomically $ do
     chan <- newTChan
-    return $ SessionState Connected T.empty chan
+    return $ SessionState True T.empty chan
 
 -- | Helper to empty out a TChan into a list, once.
 yieldChan :: TChan a -> STM [a]
@@ -61,8 +58,8 @@ worker = do
         Just packet -> do
             liftIO $ putStrLn $ "Got a " ++ show packet ++ " packet!"
             processPacket packet
-            status <- lift $ use ssStatus
-            unless (status == Invalid) worker
+            status <- lift $ use ssValid
+            unless status worker
 
 protocol :: Conduit Packet (Session IO) Packet
 protocol = do
@@ -72,7 +69,7 @@ protocol = do
     worker
 
 invalidate :: (Monad m) => Conduit Packet (Session m) Packet
-invalidate = lift $ ssStatus .= Invalid
+invalidate = lift $ ssValid .= False
 
 kick :: (Monad m) => String -> Conduit Packet (Session m) Packet
 kick s = yield (ErrorPacket $ T.pack s) >> invalidate
@@ -96,28 +93,13 @@ processPacket :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
 --   client.
 processPacket (PingPacket _) = yield $ PingPacket 0
 
--- | Login. Examine all of the bits, make sure they match, and then reply in
---   kind.
-processPacket (LoginPacket protoVersion _ _ _ _ _ _) =
-    -- Is the protocol invalid? Kick the client with an unsupported-protocol
-    -- message.
-    if protoVersion /= 29
-        then kick "Unsupported protocol"
-        else do
-            _ <- lift $ ssStatus .= Authenticated
-            yield $ LoginPacket 1 T.empty (T.pack "default") Creative Earth
-                Peaceful 10
-
--- | Handshake. Just write down the username.
-processPacket (HandshakePacket nick) = do
-    let splitNick = T.takeWhile (/= ';') nick
-    _ <- lift $ ssNick .= splitNick
-    yield $ HandshakePacket $ T.pack "-"
+-- | Handshake. Reply with a login.
+processPacket (HandshakePacket nick _ _) = do
+    _ <- lift $ ssNick .= nick
+    yield $ LoginPacket 1 (T.pack "default") Creative Earth Peaceful 10
 
 -- | Chat packet. Broadcast it to everybody else.
-processPacket cp@(ChatPacket _) = do
-    status <- lift $ use ssStatus
-    when (status == Authenticated) $ broadcast cp
+processPacket cp@(ChatPacket _) = broadcast cp
 
 -- | A poll. Reply with a formatted error packet and close the connection.
 processPacket PollPacket = kick "Baskerville§0§1"

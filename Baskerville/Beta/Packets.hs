@@ -203,8 +203,8 @@ getUcs2 = do
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32 -- 0x00
-            | LoginPacket Word32 T.Text T.Text Mode Dimension Difficulty Word8
-            | HandshakePacket T.Text -- 0x02
+            | LoginPacket Word32 T.Text Mode Dimension Difficulty Word8 -- 0x01
+            | HandshakePacket T.Text T.Text Word32 -- 0x02
             | ChatPacket T.Text -- 0x03
             | TimePacket Word64 -- 0x04
             | EquipmentPacket Word32 Word16 Word16 Word16 -- 0x05
@@ -277,17 +277,17 @@ data Packet = PingPacket Word32 -- 0x00
 
 instance Serialize Packet where
     put (PingPacket pid) = putWord8 0x00 >> put pid
-    put (LoginPacket a b c d e f g) = do
+    put (LoginPacket a b c d e f) = do
         putWord8 0x01
         put a
         putUcs2 b
-        putUcs2 c
+        putWord32be $ (toEnum . fromEnum) c
         putWord32be $ (toEnum . fromEnum) d
-        putWord32be $ (toEnum . fromEnum) e
-        put f
+        put e
         putWord8 0x00 -- Unused field, should always be 0x0
-        put g
-    put (HandshakePacket t) = putWord8 0x02 >> putUcs2 t
+        put f
+    put hp@(HandshakePacket _ _ _) =
+        error $ "Can't put HandshakePacket " ++ show hp
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
     put (TimePacket t) = putWord8 0x04 >> put t
     put (SpawnPacket c) = putWord8 0x06 >> put c
@@ -304,8 +304,13 @@ instance Serialize Packet where
         header <- getWord8
         case header of
             0x00 -> PingPacket <$!> get
-            0x01 -> getLoginPacket
-            0x02 -> HandshakePacket <$!> getUcs2
+            -- 0x01 S->C only
+            0x02 -> do
+                _ <- getWord8
+                username <- getUcs2
+                host <- getUcs2
+                port <- get
+                return $! HandshakePacket username host port
             0x03 -> ChatPacket <$!> getUcs2
             0x04 -> TimePacket <$!> get
             0x06 -> SpawnPacket <$!> get
@@ -316,18 +321,3 @@ instance Serialize Packet where
             _    -> do
                 let s = "Can't deal with packet " ++ show header
                 trace s $ return InvalidPacket
-
-getLoginPacket :: Get Packet
-getLoginPacket = do
-    protocol <- get
-    username <- getUcs2
-    levelType <- getUcs2
-    mode <- getWord32be
-    dimension <- getWord32be
-    difficulty <- get
-    _ <- getWord8
-    players <- get
-    let mode' = toEnum . fromEnum $ mode
-    let dimension' = toEnum . fromEnum $ dimension
-    return $! LoginPacket protocol username levelType mode' dimension'
-        difficulty players
