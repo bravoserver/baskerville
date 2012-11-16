@@ -286,7 +286,7 @@ instance Serialize Packet where
         put e
         putWord8 0x00 -- Unused field, should always be 0x0
         put f
-    put hp@(HandshakePacket _ _ _) =
+    put hp@(HandshakePacket{}) =
         error $ "Can't put HandshakePacket " ++ show hp
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
     put (TimePacket t) = putWord8 0x04 >> put t
