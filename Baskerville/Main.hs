@@ -5,6 +5,7 @@ module Main where
 import Control.Distributed.Process
 import Control.Distributed.Process.Node
 import Control.Exception
+import Control.Monad
 import Control.Monad.Trans.State (evalStateT)
 import Data.Binary
 import Data.Conduit
@@ -20,7 +21,7 @@ app :: Application (Session IO)
 app appdata = do
     liftIO $ putStrLn "Before app..."
     let pSource = appSource appdata $= bsToPackets
-    let pSink = packetsToBs =$ appSink appdata
+        pSink = packetsToBs =$ appSink appdata
     pSource $$ protocol =$ pSink
     liftIO $ putStrLn "After app!"
 
@@ -54,7 +55,7 @@ main = withSocketsDo $ do
     putStrLn "Creating local node..."
     node <- newLocalNode transport initRemoteTable
     putStrLn "Spinning up SessionList..."
-    pid <- forkProcess node (startSessionList >> return ())
+    pid <- forkProcess node (void startSessionList)
     putStrLn $ "Forked, PID " ++ show pid
     putStrLn "Starting up..."
     s <- startingState
