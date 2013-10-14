@@ -51,9 +51,9 @@ Executable baskerville
                  , array
                  , binary
                  , bytestring
-                 , cereal
-                 , cereal-conduit == 0.6.*
-                 , conduit == 0.5.*
+                 , cereal==0.3.*
+                 , cereal-conduit
+                 , conduit
                  , containers
                  , data-memocombinators
                  , distributed-process
