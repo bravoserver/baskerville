@@ -1,6 +1,6 @@
-import Char
 import Data.Bits
-import List
+import Data.Char
+import Data.List
 import Test.QuickCheck
 import Text.Printf
 
@@ -8,6 +8,7 @@ import Baskerville.Utilities.Bits
 import Baskerville.Utilities.Chat
 
 -- From some tutorial somewhere.
+mapper :: PrintfArg t => (t, IO b) -> IO b
 mapper (d, t) = printf "%-30s: " d >> t
 main = mapM_ mapper tests
 
