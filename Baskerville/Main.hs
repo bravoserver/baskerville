@@ -41,17 +41,6 @@ makeChans core = do
     outgoing <- newTChan
     return (incoming, outgoing)
 
-packetThread :: TChan (Maybe Packet) -> TChan (Maybe Packet) -> IO ()
-packetThread incoming outgoing = loop
-    where
-    loop = do
-        putStrLn "Start"
-        atomically $ do
-            p <- readTChan incoming
-            writeTChan outgoing p
-        putStrLn "End"
-        loop
-
 app :: TVar () -> Application IO
 app tcore appdata = do
     putStrLn "Before app..."
