@@ -326,7 +326,10 @@ instance Serialize Packet where
             0x06 -> SpawnPacket <$!> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
             0x33 -> ChunkPacket <$!> get
-            0xfe -> return PollPacket
+            -- 0xfe should always be followed by 0x01, not by anything.
+            -- Nonetheless, I'm going to just not bother checking. Whatever,
+            -- yo. ~ C.
+            0xfe -> getWord8 >> return PollPacket
             0xff -> ErrorPacket <$!> getUcs2
             _    -> do
                 let s = "Can't deal with packet " ++ show header
