@@ -70,9 +70,9 @@ simplex2 seed sx sy = let
     coords = coords2 dx dy
     p = field seed
     g1 = p !!! (i + p !!! j)
-    g2 = if dx > dy
-        then p !!! (i + 1 + p !!! j)
-        else p !!! (i + p !!! (j + 1))
+    g2 = p !!! (if dx > dy
+        then i + 1 + p !!! j
+        else i + p !!! (j + 1))
     g3 = p !!! (i + 1 + p !!! (j + 1))
     gradients = [g1, g2, g3]
     n = sum $ zipWith n2 coords gradients
