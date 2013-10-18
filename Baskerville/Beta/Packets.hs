@@ -195,7 +195,8 @@ bWord16 = encode
 
 -- | Pack a text string into a UCS2 length-prefixed string.
 bUcs2 :: T.Text -> BS.ByteString
-bUcs2 t = BS.append (bWord16 $ fromIntegral (T.length t)) (encodeUtf16BE t)
+bUcs2 t = let len = bWord16 $ fromIntegral (T.length t)
+    in BS.append len (encodeUtf16BE t)
 
 putUcs2 :: Putter T.Text
 putUcs2 = putByteString . bUcs2
@@ -212,82 +213,83 @@ getUcs2 = do
 --   servers. They are atomic and self-contained. The first byte of a packet
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
-data Packet = PingPacket Word32 -- 0x00
-            | LoginPacket EID T.Text Mode Dimension Difficulty Word8 -- 0x01
-            | HandshakePacket Word8 T.Text T.Text Word32 -- 0x02
-            | ChatPacket T.Text -- 0x03
-            | TimePacket Word64 Word64 -- 0x04
-            | EquipmentPacket EID Word16 Word16 Word16 -- 0x05
-            | SpawnPacket BCoord -- 0x06
-            | UsePacket EID EID Bool -- 0x07
+data Packet = Ping Word32 -- 0x00
+            | Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
+            | Handshake Word8 T.Text T.Text Word32 -- 0x02
+            | Chat T.Text -- 0x03
+            | Time Word64 Word64 -- 0x04
+            | Equipment EID Word16 Word16 Word16 -- 0x05
+            | Spawn BCoord -- 0x06
+            | Use EID EID Bool -- 0x07
             | UpdateHealth Word16 Word16 Float -- 0x08
-            | RespawnPacket Dimension Difficulty Mode Word16 T.Text -- 0x09
-            | AirbornePacket Airborne -- 0x0A | Known as Player on kev009
+            | Respawn Dimension Difficulty Mode Word16 T.Text -- 0x09
+            | AirbornePacket Airborne -- 0x0A
             | PositionPacket Position Airborne -- 0x0B
             | OrientationPacket Orientation Airborne -- 0x0C
             | LocationPacket Position Orientation Airborne -- 0x0D
-            | DiggingPacket DiggingState Word32 Word8 Word32 Face -- 0x0E
-            -- | PlaceBlockPacket WorldDirection Word8 Word32 Word8 Slot -- 0x0F
-            | SlotSelectionPacket Word16 -- 0x10
-            | UseBedPacket EID Word8 Word32 Word8 Word32 -- 0x11
-            | AnimationPacket EID Animation -- 0x12
-            | ActionPacket EID Action -- 0x13
-            | SpawnNamedPacket EID T.Text Word32 Word32 Word32 Word8 Word8 Item -- 0x14
-            | SpawnDroppedPacket EID Item Word8 Word16 Word32 Word32 Word32 Word8 Word8 Word8 -- 0x15
-            | CollectItemPacket EID EID -- 0x16
+            | Dig DiggingState Word32 Word8 Word32 Face -- 0x0E
+            -- | PlaceBlock WorldDirection Word8 Word32 Word8 Slot -- 0x0F
+            | SlotSelection Word16 -- 0x10
+            | UseBed EID Word8 Word32 Word8 Word32 -- 0x11
+            | Animation EID Animation -- 0x12
+            | Action EID Action -- 0x13
+            | SpawnNamed EID T.Text Word32 Word32 Word32 Word8 Word8 Item -- 0x14
+            | SpawnDropped EID Item Word8 Word16 Word32 Word32 Word32 Word8 Word8 Word8 -- 0x15
+            | CollectItem EID EID -- 0x16
             -- Two 0x17 possibilities
-            -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 -- 0x17
-            -- | SpawnObjectPacket Word32 ObVehicle Word32 Word32 Word32 Word32 Word16 Word16 Word16 -- 0x17
-            -- | SpawnMobPacket Word32 Mob Word32 Word32 Word32 Word8 Word8 Word8 Metadata -- 0x18
-            | SpawnPaintingPacket EID T.Text BCoord PaintDirection -- 0x19
-            | SpawnExperiencePacket EID Word32 Word32 Word32 Word16 -- 0x1A
-            | VelocityPacket EID Word16 Word16 Word16 -- 0x1C
-            | DestroyEntityPacket [EID] -- 0x1D
-            | EntityPacket EID -- 0x1E
-            | RelativeMovePacket EID Word8 Word8 Word8 -- 0x1F
-            | EntityLookPacket EID Word8 Word8 -- 0x20
-            | EntityLookMovePacket EID Word8 Word8 Word8 Word8 Word8 -- 0x21
-            | EntityTeleportPacket EID Word32 Word32 Word32 Word8 Word8 -- 0x22
-            | EntityHeadLookPacket EID Word8 -- 0x23
+            -- | SpawnObject Word32 ObVehicle Word32 Word32 Word32 Word32 -- 0x17
+            -- | SpawnObject Word32 ObVehicle Word32 Word32 Word32 Word32 Word16 Word16 Word16 -- 0x17
+            -- | SpawnMob Word32 Mob Word32 Word32 Word32 Word8 Word8 Word8 Metadata -- 0x18
+            | SpawnPainting EID T.Text BCoord PaintDirection -- 0x19
+            | SpawnExperience EID Word32 Word32 Word32 Word16 -- 0x1A
+            | Velocity EID Word16 Word16 Word16 -- 0x1C
+            | DestroyEntity [EID] -- 0x1D
+            | Entity EID -- 0x1E
+            | RelativeMove EID Word8 Word8 Word8 -- 0x1F
+            | EntityLook EID Word8 Word8 -- 0x20
+            | EntityLookMove EID Word8 Word8 Word8 Word8 Word8 -- 0x21
+            | EntityTeleport EID Word32 Word32 Word32 Word8 Word8 -- 0x22
+            | EntityHeadLook EID Word8 -- 0x23
             -- | EntityStatus EID Status -- 0x26
-            | EntityAttachPacket EID Word32 -- 0x27
-            -- | EntityMetadataPacket EID Metadata -- 0x28
-            | EntityEffectPacket EID Word8 Word8 Word16 -- 0x29
-            | EndEntityEffectPacket EID Word8 -- 0x2A
-            | SetExperiencePacket Float Word16 Word16 -- 0x2B
-            | AllocChunkPacket Word32 Word32 Bool -- 0x32
-            | ChunkPacket Chunk -- 0x33
-            -- | MultiBlockChangePacket Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
-            | BlockChangePacket Word32 Word8 Word32 Word8 Word8 -- 0x35
-            -- | BlockActionPacket Word32 Word16 Word32 BlockAction BlockAction -- 0x36
-            -- | ExplosionPacket Double Double Double Float Word32 [Record] -- 0x3C
-            -- | SoundParticleEffectPacket Word32 Word32 Word8 Word32 EffectData -- 0x3D
-            -- | GameStateChangePacket Reason Difficulty -- 0x46
-            | ThunderboltPacket EID Word8 Word32 Word32 Word32 -- 0x47
-            | WindowOpenPacket Word8 Word8 T.Text Word8 -- 0x64
-            | WindowClosePacket Word8 -- 0x65
-            -- | WindowClickPacket Word8 Word16 Word8 Word16 Bool Slot -- 0x66
-            -- | WindowSlotChangePacket Word8 Word16 Slot -- 0x67
-            -- | SetWindowItemsPacket Word8 Word16 [Slot] -- 0x68
-            -- | UpdateWindowPacket Word8 WindowProperty Word16 -- 0x69
-            -- | ConfirmationPacket Word8 Word16 Accepted -- 0x6A
-            -- | CreativeInventoryActionPacket Word16 Slot -- 0x6B
-            | EnchantItemPacket Word8 Word8 -- 0x6C
-            | UpdateSignPacket Word32 Word16 Word32 T.Text T.Text T.Text T.Text -- 0c82
-            -- | ItemDataPacket Item Word16 Word8 [Word8] -- 0x83
+            | EntityAttach EID Word32 -- 0x27
+            -- | EntityMetadata EID Metadata -- 0x28
+            | EntityEffect EID Word8 Word8 Word16 -- 0x29
+            | EndEntityEffect EID Word8 -- 0x2A
+            | SetExperience Float Word16 Word16 -- 0x2B
+            | AllocChunk Word32 Word32 Bool -- 0x32
+            | SendChunk Chunk -- 0x33
+            -- | MultiBlockChange Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
+            | BlockChange Word32 Word8 Word32 Word8 Word8 -- 0x35
+            -- | BlockAction Word32 Word16 Word32 BlockAction BlockAction -- 0x36
+            -- | Explosion Double Double Double Float Word32 [Record] -- 0x3C
+            -- | SoundParticleEffect Word32 Word32 Word8 Word32 EffectData -- 0x3D
+            -- | GameStateChange Reason Difficulty -- 0x46
+            | Thunderbolt EID Word8 Word32 Word32 Word32 -- 0x47
+            | WindowOpen Word8 Word8 T.Text Word8 -- 0x64
+            | WindowClose Word8 -- 0x65
+            -- | WindowClick Word8 Word16 Word8 Word16 Bool Slot -- 0x66
+            -- | WindowSlotChange Word8 Word16 Slot -- 0x67
+            -- | SetWindowItems Word8 Word16 [Slot] -- 0x68
+            -- | UpdateWindow Word8 WindowProperty Word16 -- 0x69
+            -- | Confirmation Word8 Word16 Accepted -- 0x6A
+            -- | CreativeInventoryAction Word16 Slot -- 0x6B
+            | EnchantItem Word8 Word8 -- 0x6C
+            | UpdateSign Word32 Word16 Word32 T.Text T.Text T.Text T.Text -- 0c82
+            -- | ItemData Item Word16 Word8 [Word8] -- 0x83
             -- | UpdateOnTileEntity Word32 Word16 Word32 UpdateType Word32 Word32 Word32 -- 0x84
-            -- | AlterStatPacket Stat Word8 -- 0xC8
-            | PlayerListPacket T.Text Bool Word16 -- 0xC9
+            -- | AlterStat Stat Word8 -- 0xC8
+            | PlayerList T.Text Bool Word16 -- 0xC9
             -- | PlayerAbilities Invulnerable Flying Flyable InstaBreak -- 0xCA
-            | PluginMessagePacket T.Text BS.ByteString -- 0xFA
-            | PollPacket
-            | ErrorPacket T.Text
+            | ClientSettings T.Text Word8 Word8 Difficulty Bool
+            | PluginMessage T.Text BS.ByteString -- 0xFA
+            | Poll
+            | Error T.Text
             | InvalidPacket
     deriving (Eq, Show)
 
 instance Serialize Packet where
-    put (PingPacket pid) = putWord8 0x00 >> put pid
-    put (LoginPacket a b c d e f) = do
+    put (Ping pid) = putWord8 0x00 >> put pid
+    put (Login a b c d e f) = do
         putWord8 0x01
         put a
         putUcs2 b
@@ -296,44 +298,54 @@ instance Serialize Packet where
         put e
         putWord8 0x00 -- Unused field, should always be 0x0
         put f
-    put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
-    put (TimePacket a t) = putWord8 0x04 >> put a >> put t
-    put (SpawnPacket c) = putWord8 0x06 >> put c
+    put (Chat t) = putWord8 0x03 >> putUcs2 t
+    put (Time a t) = putWord8 0x04 >> put a >> put t
+    put (Spawn c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
     put (PositionPacket p a) = putWord8 0x0b >> put p >> put a
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
     put (LocationPacket p o a) = putWord8 0x0d >> put p >> put o >> put a
-    put (ChunkPacket c) = putWord8 0x33 >> put c
-    put PollPacket = putWord8 0xfe
-    put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
+    put (SendChunk c) = putWord8 0x33 >> put c
+    put Poll = putWord8 0xfe
+    put (Error t) = putWord8 0xff >> putUcs2 t
     put p = error $ "Won't put packet " ++ show p
 
     get = do
         header <- getWord8
         case header of
-            0x00 -> PingPacket <$!> get
+            0x00 -> Ping <$!> get
             -- 0x01 S->C only
             0x02 -> do
                 protocol <- getWord8
                 username <- getUcs2
                 host <- getUcs2
                 port <- get
-                return $! HandshakePacket protocol username host port
-            0x03 -> ChatPacket <$!> getUcs2
+                return $! Handshake protocol username host port
+            0x03 -> Chat <$!> getUcs2
             -- 0x04 S->C only
-            0x06 -> SpawnPacket <$!> get
+            0x06 -> Spawn <$!> get
+            0x0a -> AirbornePacket <$!> get
+            0x0b -> PositionPacket <$!> get <*> get
+            0x0c -> OrientationPacket <$!> get <*> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
-            0x33 -> ChunkPacket <$!> get
+            0x10 -> SlotSelection <$!> get
+            0xcc -> do
+                locale <- getUcs2
+                distance <- getWord8
+                chat <- getWord8
+                difficulty <- get
+                cape <- get
+                return $! ClientSettings locale distance chat difficulty cape
             0xfa -> do
                 channel <- getUcs2
                 len <- getWord16be
                 bytes <- getByteString $ fromIntegral len
-                return $! PluginMessagePacket channel bytes
+                return $! PluginMessage channel bytes
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,
             -- yo. ~ C.
-            0xfe -> getWord8 >> return PollPacket
-            0xff -> ErrorPacket <$!> getUcs2
+            0xfe -> getWord8 >> return Poll
+            0xff -> Error <$!> getUcs2
             _    -> do
-                let s = "Can't deal with packet " ++ show header
+                let s = "Can't decode packet " ++ show header
                 trace s $ return InvalidPacket

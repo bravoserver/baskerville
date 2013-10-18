@@ -48,7 +48,7 @@ invalidate = ssValid .= False
 
 kick :: T.Text -> Worker ()
 kick s = do
-    tell [ErrorPacket s]
+    tell [Error s]
     invalidate
 
 -- | Broadcast to everybody.
@@ -68,23 +68,30 @@ process :: Packet -> Worker ()
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client.
-process (PingPacket _) = tell [PingPacket 0]
+process (Ping _) = tell [Ping 0]
 
 -- | Handshake. Reply with a login.
-process (HandshakePacket protocol nick _ _) =
+process (Handshake protocol nick _ _) =
     if protocol /= 78
         then kick $ T.append "Bad protocol " (showText protocol)
         else do
             ssNick .= nick
             lift . putStrLn $ "Shook hands with " ++ T.unpack nick
-            tell [LoginPacket (EID 1) "default" Creative Earth Peaceful 10]
+            tell [Login (EID 1) "default" Creative Earth Peaceful 10]
 
 -- | Chat packet. Broadcast it to everybody else.
--- process cp@(ChatPacket _) = broadcast cp
+-- process cp@(Chat _) = broadcast cp
+
+process (AirbornePacket _) = return ()
+process (PositionPacket{}) = return ()
+process (LocationPacket{}) = return ()
+process (SlotSelection _) = return ()
+process (ClientSettings{}) = return ()
 
 -- | Plugin messages.
-process (PluginMessagePacket channel _) = do
+process (PluginMessage channel bytes) = do
     case channel of
+        "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
         "MC|PingHost" ->
             -- Reply with a formatted error packet and close the connection.
             kick pong
@@ -93,12 +100,12 @@ process (PluginMessagePacket channel _) = do
     pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
 
 -- | A poll.
-process PollPacket = return ()
+process Poll = return ()
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
 --   disconnect them.
-process (ErrorPacket _) = invalidate
+process (Error _) = invalidate
 
 -- | A packet which we don't handle. Kick the client, we're wasting time here.
 process _ = kick "I refuse to handle this packet."
