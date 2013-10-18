@@ -34,6 +34,7 @@ packetThread incoming outgoing = loop startingState
             Just packet -> do
                 putStrLn $ "Got a " ++ show packet ++ " packet!"
                 ((), s', w) <- runRWST (process packet) () s
+                print w
                 atomically $ forM_ w $ \p -> writeTChan outgoing (Just p)
                 putStrLn "End"
                 loop s'
@@ -73,8 +74,18 @@ process (HandshakePacket nick _ _) = do
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(ChatPacket _) = broadcast cp
 
--- | A poll. Reply with a formatted error packet and close the connection.
-process PollPacket = kick "Baskerville§0§1"
+-- | A poll.
+process PollPacket = return ()
+
+-- | Plugin messages.
+process (PluginMessagePacket channel _) = do
+    case channel of
+        "MC|PingHost" ->
+            -- Reply with a formatted error packet and close the connection.
+            kick pong
+        _ -> return ()
+    where
+    pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
