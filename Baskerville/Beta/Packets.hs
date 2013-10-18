@@ -279,7 +279,7 @@ data Packet = PingPacket Word32 -- 0x00
             -- | AlterStatPacket Stat Word8 -- 0xC8
             | PlayerListPacket T.Text Bool Word16 -- 0xC9
             -- | PlayerAbilities Invulnerable Flying Flyable InstaBreak -- 0xCA
-            -- | PluginMessagePacket T.Text Word16 [Word8] -- 0xFA
+            | PluginMessagePacket T.Text BS.ByteString -- 0xFA
             | PollPacket
             | ErrorPacket T.Text
             | InvalidPacket
@@ -326,6 +326,11 @@ instance Serialize Packet where
             0x06 -> SpawnPacket <$!> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
             0x33 -> ChunkPacket <$!> get
+            0xfa -> do
+                channel <- getUcs2
+                len <- getWord16be
+                bytes <- getByteString $ fromIntegral len
+                return $! PluginMessagePacket channel bytes
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,
             -- yo. ~ C.
