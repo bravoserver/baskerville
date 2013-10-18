@@ -56,12 +56,10 @@ Executable baskerville
                  , conduit
                  , containers
                  , data-memocombinators
-                 , distributed-process
                  , lens == 3.*
                  , netwire
                  , network
                  , network-conduit
-                 , network-transport-tcp
                  , random-shuffle
                  , stm >= 2.3
                  , text
