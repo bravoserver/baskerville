@@ -58,6 +58,7 @@ Executable baskerville
                  , data-memocombinators
                  , distributed-process
                  , lens == 3.*
+                 , netwire
                  , network
                  , network-conduit
                  , network-transport-tcp
