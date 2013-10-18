@@ -214,7 +214,7 @@ getUcs2 = do
 --   delimiters. This makes packets difficult to parse.
 data Packet = PingPacket Word32 -- 0x00
             | LoginPacket EID T.Text Mode Dimension Difficulty Word8 -- 0x01
-            | HandshakePacket T.Text T.Text Word32 -- 0x02
+            | HandshakePacket Word8 T.Text T.Text Word32 -- 0x02
             | ChatPacket T.Text -- 0x03
             | TimePacket Word64 Word64 -- 0x04
             | EquipmentPacket EID Word16 Word16 Word16 -- 0x05
@@ -296,8 +296,6 @@ instance Serialize Packet where
         put e
         putWord8 0x00 -- Unused field, should always be 0x0
         put f
-    put hp@(HandshakePacket{}) =
-        error $ "Can't put HandshakePacket " ++ show hp
     put (ChatPacket t) = putWord8 0x03 >> putUcs2 t
     put (TimePacket a t) = putWord8 0x04 >> put a >> put t
     put (SpawnPacket c) = putWord8 0x06 >> put c
@@ -308,7 +306,7 @@ instance Serialize Packet where
     put (ChunkPacket c) = putWord8 0x33 >> put c
     put PollPacket = putWord8 0xfe
     put (ErrorPacket t) = putWord8 0xff >> putUcs2 t
-    put _ = putByteString BS.empty
+    put p = error $ "Won't put packet " ++ show p
 
     get = do
         header <- getWord8
@@ -316,11 +314,11 @@ instance Serialize Packet where
             0x00 -> PingPacket <$!> get
             -- 0x01 S->C only
             0x02 -> do
-                _ <- getWord8
+                protocol <- getWord8
                 username <- getUcs2
                 host <- getUcs2
                 port <- get
-                return $! HandshakePacket username host port
+                return $! HandshakePacket protocol username host port
             0x03 -> ChatPacket <$!> getUcs2
             -- 0x04 S->C only
             0x06 -> SpawnPacket <$!> get

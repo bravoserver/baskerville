@@ -5,10 +5,14 @@ module Baskerville.Beta.Session where
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.RWS
 import qualified Data.Text as T
 
 import Baskerville.Beta.Packets
+
+showText :: Show a => a -> T.Text
+showText = T.pack . show
 
 data Session = Session { _ssValid :: Bool
                        , _ssNick :: T.Text
@@ -67,15 +71,16 @@ process :: Packet -> Worker ()
 process (PingPacket _) = tell [PingPacket 0]
 
 -- | Handshake. Reply with a login.
-process (HandshakePacket nick _ _) = do
-    ssNick .= nick
-    tell [LoginPacket (EID 1) "default" Creative Earth Peaceful 10]
+process (HandshakePacket protocol nick _ _) =
+    if protocol /= 78
+        then kick $ T.append "Bad protocol " (showText protocol)
+        else do
+            ssNick .= nick
+            lift . putStrLn $ "Shook hands with " ++ T.unpack nick
+            tell [LoginPacket (EID 1) "default" Creative Earth Peaceful 10]
 
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(ChatPacket _) = broadcast cp
-
--- | A poll.
-process PollPacket = return ()
 
 -- | Plugin messages.
 process (PluginMessagePacket channel _) = do
@@ -86,6 +91,9 @@ process (PluginMessagePacket channel _) = do
         _ -> return ()
     where
     pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
+
+-- | A poll.
+process PollPacket = return ()
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
