@@ -30,11 +30,12 @@ type Worker = RWST () [Packet] Session IO
 packetThread :: TChan (Maybe Packet) -> TChan (Maybe Packet) -> IO ()
 packetThread incoming outgoing = loop startingState
     where
+    end = writeTChan outgoing Nothing
     loop s = do
         putStrLn "Start"
         mp <- atomically $ readTChan incoming
         case mp of
-            Nothing -> return ()
+            Nothing -> atomically end
             Just packet -> do
                 putStrLn $ "Got a " ++ show packet ++ " packet!"
                 ((), s', w) <- runRWST (process packet) () s
