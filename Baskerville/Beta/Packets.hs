@@ -21,6 +21,18 @@ f <$!> ma = do
     a <- ma
     return $! f a
 
+data Shake = Status | NewLogin
+    deriving (Enum, Eq, Show)
+
+instance Serialize Shake where
+    put Status   = putWord8 0x00
+    put NewLogin = putWord8 0x01
+    get = do
+        m <- getWord8
+        return $ case m of
+            0x00 -> Status
+            _    -> NewLogin
+
 data Mode = Survival | Creative
     deriving (Enum, Eq, Show)
 
