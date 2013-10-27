@@ -190,7 +190,7 @@ instance Serialize EID where
     put (EID eid) = put eid
     get = EID <$!> get
 
--- | Pack an arbitrary-length integer.
+-- | Put an arbitrary-length integer.
 putInteger :: Putter Integer
 putInteger i = let ws = chop i in do
     mapM_ (putWord8 . (.|. 0x80)) $ init ws
@@ -201,7 +201,7 @@ putInteger i = let ws = chop i in do
         then fromInteger (i .&. 0x7f) : chop (i `shiftR` 7)
         else [fromInteger i]
 
--- | Unpack an arbitrary-length integer.
+-- | Get an arbitrary-length integer.
 getInteger :: Get Integer
 getInteger = do
     bs <- loop
@@ -217,6 +217,19 @@ getInteger = do
             else return [b]
     -- And there are only seven bits here, so shift by seven, not eight.
     intify = foldr (\b i -> (i `shiftL` 7) .|. toInteger b) 0
+
+-- | Put a Text as a UTF-8 length-prefixed string.
+putText :: Putter T.Text
+putText text = do
+    putInteger . toInteger . T.length $ text
+    putByteString . encodeUtf8 $ text
+
+-- | Get a Text as a UTF-8 length-prefixed string.
+getText :: Get T.Text
+getText = do
+    len <- getInteger
+    bytes <- getByteString $ fromIntegral len
+    return $ decodeUtf8 bytes
 
 -- | Pack a big-endian short.
 bWord16 :: Word16 -> BS.ByteString
