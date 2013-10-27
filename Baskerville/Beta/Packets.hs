@@ -2,6 +2,7 @@ module Baskerville.Beta.Packets where
 
 import Control.Applicative
 import qualified Data.ByteString as BS
+import Data.Bits
 import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -188,6 +189,34 @@ newtype EID = EID { unEID :: Word32 }
 instance Serialize EID where
     put (EID eid) = put eid
     get = EID <$!> get
+
+-- | Pack an arbitrary-length integer.
+putInteger :: Putter Integer
+putInteger i = let ws = chop i in do
+    mapM_ (putWord8 . (.|. 0x80)) $ init ws
+    putWord8 $ last ws
+    where
+    chop :: Integer -> [Word8]
+    chop i = if i >= 0x80
+        then fromInteger (i .&. 0x7f) : chop (i `shiftR` 7)
+        else [fromInteger i]
+
+-- | Unpack an arbitrary-length integer.
+getInteger :: Get Integer
+getInteger = do
+    bs <- loop
+    return $! intify bs
+    where
+    loop = do
+        b <- getWord8
+        if b >= 0x80
+            then do
+                bs <- loop
+                -- Clear off the continuation bit.
+                return $ (b .&. 0x7f) : bs
+            else return [b]
+    -- And there are only seven bits here, so shift by seven, not eight.
+    intify = foldr (\b i -> (i `shiftL` 7) .|. toInteger b) 0
 
 -- | Pack a big-endian short.
 bWord16 :: Word16 -> BS.ByteString
