@@ -21,18 +21,6 @@ f <$!> ma = do
     a <- ma
     return $! f a
 
-data Shake = Status | NewLogin
-    deriving (Enum, Eq, Show)
-
-instance Serialize Shake where
-    put Status   = putWord8 0x00
-    put NewLogin = putWord8 0x01
-    get = do
-        m <- getWord8
-        return $ case m of
-            0x00 -> Status
-            _    -> NewLogin
-
 data Mode = Survival | Creative
     deriving (Enum, Eq, Show)
 
@@ -269,7 +257,7 @@ getUcs2 = do
 --   delimiters. This makes packets difficult to parse.
 data Packet = Ping Word32 -- 0x00
             | Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
-            | Handshake Word8 T.Text T.Text Word32 -- 0x02
+            -- | Handshake Word8 T.Text T.Text Word32 -- 0x02
             | Chat T.Text -- 0x03
             | Time Word64 Word64 -- 0x04
             | Equipment EID Word16 Word16 Word16 -- 0x05
@@ -369,12 +357,12 @@ instance Serialize Packet where
         case header of
             0x00 -> Ping <$!> get
             -- 0x01 S->C only
-            0x02 -> do
-                protocol <- getWord8
-                username <- getUcs2
-                host <- getUcs2
-                port <- get
-                return $! Handshake protocol username host port
+            -- 0x02 -> do
+            --     protocol <- getWord8
+            --     username <- getUcs2
+            --     host <- getUcs2
+            --     port <- get
+            --     return $! Handshake protocol username host port
             0x03 -> Chat <$!> getUcs2
             -- 0x04 S->C only
             0x06 -> Spawn <$!> get

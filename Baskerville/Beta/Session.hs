@@ -72,13 +72,13 @@ process :: Packet -> Worker ()
 process (Ping _) = tell [Ping 0]
 
 -- | Handshake. Reply with a login.
-process (Handshake protocol nick _ _) =
-    if protocol /= 78
-        then kick $ T.append "Bad protocol " (showText protocol)
-        else do
-            ssNick .= nick
-            lift . putStrLn $ "Shook hands with " ++ T.unpack nick
-            tell [Login (EID 1) "default" Creative Earth Peaceful 10]
+-- process (Handshake protocol nick _ _) =
+--     if protocol /= 78
+--         then kick $ T.append "Bad protocol " (showText protocol)
+--         else do
+--             ssNick .= nick
+--             lift . putStrLn $ "Shook hands with " ++ T.unpack nick
+--             tell [Login (EID 1) "default" Creative Earth Peaceful 10]
 
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(Chat _) = broadcast cp

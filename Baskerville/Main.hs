@@ -4,12 +4,15 @@ import Control.Concurrent hiding (yield)
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
 import Data.Conduit
+import Data.Conduit.Cereal
+import qualified Data.Conduit.List as CL
 import Data.Conduit.Network
 import Network
 
 import Baskerville.Beta.Conduits
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Session
+import Baskerville.Beta.Shake
 
 intake :: TChan (Maybe Packet) -> Sink Packet IO ()
 intake chan = loop
@@ -39,15 +42,40 @@ makeChans core = do
     outgoing <- newTChan
     return (incoming, outgoing)
 
+statusConduit :: Conduit StatusPacket IO StatusPacket
+statusConduit = do
+    mpacket <- await
+    case mpacket of
+        Nothing -> return ()
+        Just packet -> do
+            yield $ case packet of
+                StatusRequest -> StatusResponse
+                _             -> packet
+            statusConduit
+
 app :: TVar () -> Application IO
 app tcore appdata = do
     putStrLn "Before app..."
-    let pSource = appSource appdata $= bsToPackets
-        pSink = packetsToBs =$ appSink appdata
-    (incoming, outgoing) <- atomically $ makeChans ()
-    liftIO . forkIO $ pSource $$ intake incoming
-    liftIO . forkIO $ outflow outgoing $$ pSink
-    packetThread incoming outgoing
+    let handshakeSink = conduitGet getHandshake =$ CL.head
+    (rsource, handshake) <- appSource appdata $$+ handshakeSink
+    case handshake of
+        Nothing -> return ()
+        Just (Handshake _ _ _ style) -> do
+            print handshake
+            case style of
+                NewStatus -> do
+                    (source, finalizer) <- unwrapResumable rsource
+                    let source' = source $= conduitGet getStatus
+                        dest    = conduitPut putStatus =$ appSink appdata
+                    source' $= statusConduit $$ dest
+                    finalizer
+                NewLogin -> undefined
+    -- let pSource = appSource appdata $= bsToPackets
+    --     pSink = packetsToBs =$ appSink appdata
+    -- (incoming, outgoing) <- atomically $ makeChans ()
+    -- liftIO . forkIO $ pSource $$ intake incoming
+    -- liftIO . forkIO $ outflow outgoing $$ pSink
+    -- packetThread incoming outgoing
     putStrLn "After app!"
 
 startServer :: TVar () -> IO ()
