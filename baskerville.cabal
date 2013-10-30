@@ -48,6 +48,7 @@ Cabal-version:       >=1.2
 Executable baskerville
   Main-is:             Baskerville/Main.hs
   Build-depends: base >= 4 && < 5
+                 , aeson
                  , array
                  , binary
                  , bytestring
