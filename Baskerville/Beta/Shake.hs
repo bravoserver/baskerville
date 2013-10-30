@@ -3,7 +3,9 @@
 module Baskerville.Beta.Shake where
 
 import Control.Monad
-import Data.Serialize
+import Data.Aeson
+import qualified Data.ByteString.Lazy as BSL
+import Data.Serialize hiding (encode)
 import qualified Data.Text as T
 import Data.Word
 
@@ -37,6 +39,25 @@ getHandshake = do
     style    <- get
     return $! Handshake protocol host port style
 
+data ServerVersion = Version
+    deriving (Eq, Show)
+
+instance ToJSON ServerVersion where
+    toJSON Version = object [ "name" .= ("Baskerville" :: String)
+                            , "protocol" .= (4 :: Int) ]
+
+data ServerInfo = Info
+    deriving (Eq, Show)
+
+instance ToJSON ServerInfo where
+    toJSON Info = let players = object [ "max" .= (1000 :: Int)
+                                       , "online" .= (0 :: Int)
+                                       , "sample" .= ([] :: [Int]) ]
+                      description = object [ "text" .= ("Baskerville" :: String) ]
+                  in object [ "version" .= Version
+                            , "players" .= players
+                            , "description" .= description ]
+
 data StatusPacket = StatusRequest | StatusResponse | StatusPing Word64
     deriving (Eq, Show)
 
@@ -51,12 +72,16 @@ getStatus = do
         _    -> error $ "Won't get status header " ++ show header
 
 putStatus :: Putter StatusPacket
-putStatus StatusResponse = do
-    -- Fixed length
-    putWord8 0x04
+putStatus StatusResponse = let
+    info = encode Info
+    infoLength = toInteger $ BSL.length info
+    in do
+    putInteger $ infoLength + 3
     -- Packet header
     putWord8 0x00
-    putText "{}"
+    -- Length and data
+    putInteger infoLength
+    putLazyByteString info
 putStatus (StatusPing time) = do
     -- Fixed length
     putWord8 0x05
