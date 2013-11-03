@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import Data.Word
 
 import Baskerville.Beta.Packets
+import Baskerville.Beta.Server
 
 data ShakeStyle = NewStatus | NewLogin
     deriving (Enum, Eq, Show)
@@ -39,25 +40,6 @@ getHandshake = do
     style    <- get
     return $! Handshake protocol host port style
 
-data ServerVersion = Version
-    deriving (Eq, Show)
-
-instance ToJSON ServerVersion where
-    toJSON Version = object [ "name" .= ("Baskerville" :: String)
-                            , "protocol" .= (4 :: Int) ]
-
-data ServerInfo = Info
-    deriving (Eq, Show)
-
-instance ToJSON ServerInfo where
-    toJSON Info = let players = object [ "max" .= (1000 :: Int)
-                                       , "online" .= (0 :: Int)
-                                       , "sample" .= ([] :: [Int]) ]
-                      description = object [ "text" .= ("Baskerville" :: String) ]
-                  in object [ "version" .= Version
-                            , "players" .= players
-                            , "description" .= description ]
-
 data StatusPacket = StatusRequest | StatusResponse | StatusPing Word64
     deriving (Eq, Show)
 
@@ -73,7 +55,7 @@ getStatus = do
 
 putStatus :: Putter StatusPacket
 putStatus StatusResponse = let
-    info = encode Info
+    info = encode $ Info Version
     infoLength = toInteger $ BSL.length info
     in do
     putInteger $ infoLength + 3
