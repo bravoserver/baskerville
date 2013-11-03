@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Control.Concurrent hiding (yield)
@@ -11,6 +13,7 @@ import Data.Serialize
 import Network
 
 import Baskerville.Beta.Conduits
+import Baskerville.Beta.Login
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
@@ -44,6 +47,15 @@ statusConduit = awaitForever worker
         StatusRequest -> StatusResponse
         _             -> packet
 
+loginConduit :: Conduit LoginPacket IO LoginPacket
+loginConduit = awaitForever worker
+    where
+    worker packet = do
+        liftIO . print $ packet
+        yield $ case packet of
+            (LoginStart username) -> LoginSuccess "" username
+            _                     -> packet
+
 app :: TVar () -> Application IO
 app tcore appdata = do
     putStrLn "Before app..."
@@ -59,15 +71,15 @@ app tcore appdata = do
                     let source' = source $= conduitGet getStatus
                         dest    = conduitPut putStatus =$ appSink appdata
                     source' $= statusConduit $$ dest
-                    finalizer
                 NewLogin -> do
-                    let source' = source $= conduitGet get
-                        dest    = conduitPut put =$ appSink appdata
-                    (incoming, outgoing) <- atomically $ makeChans ()
-                    forkIO $ source' $$ intake incoming
-                    forkIO $ outflow outgoing $$ dest
-                    packetThread incoming outgoing
-                    finalizer
+                    let source' = source $= conduitGet getLogin
+                        dest    = conduitPut putLogin =$ appSink appdata
+                    source' $= loginConduit $$ dest
+                    -- (incoming, outgoing) <- atomically $ makeChans ()
+                    -- forkIO $ source' $$ intake incoming
+                    -- forkIO $ outflow outgoing $$ dest
+                    -- packetThread incoming outgoing
+            finalizer
     putStrLn "After app!"
 
 startServer :: TVar () -> IO ()
