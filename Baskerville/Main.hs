@@ -7,6 +7,7 @@ import Data.Conduit
 import Data.Conduit.Cereal
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Network
+import Data.Serialize
 import Network
 
 import Baskerville.Beta.Conduits
@@ -52,20 +53,21 @@ app tcore appdata = do
         Nothing -> return ()
         Just (Handshake _ _ _ style) -> do
             print handshake
+            (source, finalizer) <- unwrapResumable rsource
             case style of
                 NewStatus -> do
-                    (source, finalizer) <- unwrapResumable rsource
                     let source' = source $= conduitGet getStatus
                         dest    = conduitPut putStatus =$ appSink appdata
                     source' $= statusConduit $$ dest
                     finalizer
-                NewLogin -> undefined
-    -- let pSource = appSource appdata $= bsToPackets
-    --     pSink = packetsToBs =$ appSink appdata
-    -- (incoming, outgoing) <- atomically $ makeChans ()
-    -- liftIO . forkIO $ pSource $$ intake incoming
-    -- liftIO . forkIO $ outflow outgoing $$ pSink
-    -- packetThread incoming outgoing
+                NewLogin -> do
+                    let source' = source $= conduitGet get
+                        dest    = conduitPut put =$ appSink appdata
+                    (incoming, outgoing) <- atomically $ makeChans ()
+                    forkIO $ source' $$ intake incoming
+                    forkIO $ outflow outgoing $$ dest
+                    packetThread incoming outgoing
+                    finalizer
     putStrLn "After app!"
 
 startServer :: TVar () -> IO ()
