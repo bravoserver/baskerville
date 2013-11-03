@@ -40,7 +40,9 @@ getHandshake = do
     style    <- get
     return $! Handshake protocol host port style
 
-data StatusPacket = StatusRequest | StatusResponse | StatusPing Word64
+data StatusPacket = StatusRequest
+                  | StatusResponse ServerInfo
+                  | StatusPing Word64
     deriving (Eq, Show)
 
 getStatus :: Get StatusPacket
@@ -54,16 +56,16 @@ getStatus = do
         _    -> error $ "Won't get status header " ++ show header
 
 putStatus :: Putter StatusPacket
-putStatus StatusResponse = let
-    info = encode $ Info Version
-    infoLength = toInteger $ BSL.length info
+putStatus (StatusResponse info) = let
+    info' = encode info
+    infoLength = toInteger $ BSL.length info'
     in do
     putInteger $ infoLength + 3
     -- Packet header
     putWord8 0x00
     -- Length and data
     putInteger infoLength
-    putLazyByteString info
+    putLazyByteString info'
 putStatus (StatusPing time) = do
     -- Fixed length
     putWord8 0x05

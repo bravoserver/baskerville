@@ -15,6 +15,7 @@ import Network
 import Baskerville.Beta.Conduits
 import Baskerville.Beta.Login
 import Baskerville.Beta.Packets
+import Baskerville.Beta.Server
 import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
 
@@ -44,7 +45,7 @@ statusConduit :: Conduit StatusPacket IO StatusPacket
 statusConduit = awaitForever worker
     where
     worker packet = yield $ case packet of
-        StatusRequest -> StatusResponse
+        StatusRequest -> StatusResponse $ Info Version
         _             -> packet
 
 loginConduit :: Conduit LoginPacket IO LoginPacket
