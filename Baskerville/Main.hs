@@ -15,15 +15,9 @@ import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
 
 intake :: TChan (Maybe Packet) -> Sink Packet IO ()
-intake chan = loop
+intake chan = awaitForever worker
     where
-    loop = do
-        mpacket <- await
-        case mpacket of
-            Nothing -> liftIO $ putStrLn "Finished reading!"
-            Just _  -> do
-                liftIO . atomically $ writeTChan chan mpacket
-                loop
+    worker packet = liftIO . atomically $ writeTChan chan (Just packet)
 
 outflow :: TChan (Maybe Packet) -> Source IO Packet
 outflow chan = loop
@@ -43,15 +37,11 @@ makeChans core = do
     return (incoming, outgoing)
 
 statusConduit :: Conduit StatusPacket IO StatusPacket
-statusConduit = do
-    mpacket <- await
-    case mpacket of
-        Nothing -> return ()
-        Just packet -> do
-            yield $ case packet of
-                StatusRequest -> StatusResponse
-                _             -> packet
-            statusConduit
+statusConduit = awaitForever worker
+    where
+    worker packet = yield $ case packet of
+        StatusRequest -> StatusResponse
+        _             -> packet
 
 app :: TVar () -> Application IO
 app tcore appdata = do
