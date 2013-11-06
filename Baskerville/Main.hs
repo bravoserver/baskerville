@@ -2,21 +2,18 @@
 
 module Main where
 
-import Control.Concurrent hiding (yield)
 import Control.Concurrent.STM
+import Control.Lens
 import Control.Monad.IO.Class
 import Data.Conduit
 import Data.Conduit.Cereal
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Network
-import Data.Serialize
 import Network
 
-import Baskerville.Beta.Conduits
 import Baskerville.Beta.Login
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Server
-import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
 
 intake :: TChan (Maybe Packet) -> Sink Packet IO ()
@@ -35,17 +32,17 @@ outflow chan = loop
                 yield packet
                 loop
 
-makeChans :: () -> STM (TChan (Maybe Packet), TChan (Maybe Packet))
+makeChans :: Server -> STM (TChan (Maybe Packet), TChan (Maybe Packet))
 makeChans core = do
     incoming <- newTChan
     outgoing <- newTChan
     return (incoming, outgoing)
 
-statusConduit :: Conduit StatusPacket IO StatusPacket
-statusConduit = awaitForever worker
+statusConduit :: Server -> Conduit StatusPacket IO StatusPacket
+statusConduit server = awaitForever worker
     where
     worker packet = yield $ case packet of
-        StatusRequest -> StatusResponse $ Info Version
+        StatusRequest -> StatusResponse $ server ^. sInfo
         _             -> packet
 
 loginConduit :: Conduit LoginPacket IO LoginPacket
@@ -57,7 +54,7 @@ loginConduit = awaitForever worker
             (LoginStart username) -> LoginSuccess "" username
             _                     -> packet
 
-app :: TVar () -> Application IO
+app :: TVar Server -> Application IO
 app tcore appdata = do
     putStrLn "Before app..."
     let handshakeSink = conduitGet getHandshake =$ CL.head
@@ -71,7 +68,8 @@ app tcore appdata = do
                 NewStatus -> do
                     let source' = source $= conduitGet getStatus
                         dest    = conduitPut putStatus =$ appSink appdata
-                    source' $= statusConduit $$ dest
+                    server <- readTVarIO tcore
+                    source' $= statusConduit server $$ dest
                 NewLogin -> do
                     let source' = source $= conduitGet getLogin
                         dest    = conduitPut putLogin =$ appSink appdata
@@ -83,11 +81,11 @@ app tcore appdata = do
             finalizer
     putStrLn "After app!"
 
-startServer :: TVar () -> IO ()
+startServer :: TVar Server -> IO ()
 startServer tcore = runTCPServer (serverSettings 25565 HostAny) $ app tcore
 
 main :: IO ()
 main = withSocketsDo $ do
     putStrLn "Starting up..."
-    core <- atomically $ newTVar ()
+    core <- atomically . newTVar $ Server (Info Version)
     startServer core
