@@ -2,13 +2,16 @@
 
 module Main where
 
+import Control.Concurrent hiding (yield)
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad.IO.Class
+import qualified Data.ByteString as BS
 import Data.Conduit
 import Data.Conduit.Cereal
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Network
+import Data.Serialize
 import Network
 
 import Baskerville.Beta.Login
@@ -45,41 +48,46 @@ statusConduit server = awaitForever worker
         StatusRequest -> StatusResponse $ server ^. sInfo
         _             -> packet
 
-loginConduit :: Conduit LoginPacket IO LoginPacket
-loginConduit = awaitForever worker
-    where
-    worker packet = do
-        liftIO . print $ packet
-        yield $ case packet of
-            (LoginStart username) -> LoginSuccess "" username
-            _                     -> packet
+loginPacket :: LoginPacket -> LoginPacket
+loginPacket (LoginStart username) = LoginSuccess "" username
+loginPacket packet = packet
+
+justOne :: Get a -> Source IO BS.ByteString
+        -> IO (ResumableSource IO BS.ByteString, Maybe a)
+justOne getter source = source $$+ conduitGet getter =$ CL.head
 
 app :: TVar Server -> Application IO
 app tcore appdata = do
-    putStrLn "Before app..."
-    let handshakeSink = conduitGet getHandshake =$ CL.head
-    (rsource, handshake) <- appSource appdata $$+ handshakeSink
+    putStrLn "Handling client connection..."
+    let outSink = appSink appdata
+    (rsource, handshake) <- justOne getHandshake $ appSource appdata
     case handshake of
         Nothing -> return ()
         Just (Handshake _ _ _ style) -> do
             print handshake
             (source, finalizer) <- unwrapResumable rsource
+            server <- readTVarIO tcore
             case style of
                 NewStatus -> do
                     let source' = source $= conduitGet getStatus
                         dest    = conduitPut putStatus =$ appSink appdata
-                    server <- readTVarIO tcore
                     source' $= statusConduit server $$ dest
                 NewLogin -> do
                     let source' = source $= conduitGet getLogin
-                        dest    = conduitPut putLogin =$ appSink appdata
-                    source' $= loginConduit $$ dest
-                    -- (incoming, outgoing) <- atomically $ makeChans ()
-                    -- forkIO $ source' $$ intake incoming
-                    -- forkIO $ outflow outgoing $$ dest
-                    -- packetThread incoming outgoing
+                        dest    = conduitPut putLogin =$ outSink
+                    -- Note that the Sink is impure and can be reused. Yay?
+                    (rsource', login) <- justOne getLogin $ source
+                    case login of
+                        Nothing -> return ()
+                        Just login' -> do
+                            -- Send a single Login packet.
+                            CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
+                            -- (incoming, outgoing) <- atomically $ makeChans server
+                            -- forkIO $ rsource' $$+- intake incoming
+                            -- forkIO $ outflow outgoing $$ dest
+                            -- packetThread incoming outgoing
             finalizer
-    putStrLn "After app!"
+    putStrLn "Finished handling client!"
 
 startServer :: TVar Server -> IO ()
 startServer tcore = runTCPServer (serverSettings 25565 HostAny) $ app tcore
