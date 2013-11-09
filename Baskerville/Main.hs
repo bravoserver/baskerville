@@ -5,6 +5,7 @@ module Main where
 import Control.Concurrent hiding (yield)
 import Control.Concurrent.STM
 import Control.Lens
+import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.ByteString as BS
 import Data.Conduit
@@ -17,6 +18,7 @@ import Network
 import Baskerville.Beta.Login
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Server
+import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
 
 intake :: TChan (Maybe Packet) -> Sink Packet IO ()
@@ -49,7 +51,7 @@ statusConduit server = awaitForever worker
         _             -> packet
 
 loginPacket :: LoginPacket -> LoginPacket
-loginPacket (LoginStart username) = LoginSuccess "" username
+loginPacket (LoginStart username) = LoginSuccess "0123456789abcdef" username
 loginPacket packet = packet
 
 justOne :: Get a -> Source IO BS.ByteString
@@ -82,10 +84,10 @@ app tcore appdata = do
                         Just login' -> do
                             -- Send a single Login packet.
                             CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
-                            -- (incoming, outgoing) <- atomically $ makeChans server
-                            -- forkIO $ rsource' $$+- intake incoming
-                            -- forkIO $ outflow outgoing $$ dest
-                            -- packetThread incoming outgoing
+                            (incoming, outgoing) <- atomically $ makeChans server
+                            void . forkIO $ rsource' $$+- conduitGet get =$ intake incoming
+                            void . forkIO $ outflow outgoing $= conduitPut put $$ outSink
+                            packetThread incoming outgoing
             finalizer
     putStrLn "Finished handling client!"
 
