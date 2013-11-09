@@ -75,10 +75,7 @@ app tcore appdata = do
                         dest    = conduitPut putStatus =$ appSink appdata
                     source' $= statusConduit server $$ dest
                 NewLogin -> do
-                    let source' = source $= conduitGet getLogin
-                        dest    = conduitPut putLogin =$ outSink
-                    -- Note that the Sink is impure and can be reused. Yay?
-                    (rsource', login) <- justOne getLogin $ source
+                    (rsource', login) <- justOne getLogin source
                     case login of
                         Nothing -> return ()
                         Just login' -> do
@@ -86,6 +83,7 @@ app tcore appdata = do
                             CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
                             (incoming, outgoing) <- atomically $ makeChans server
                             void . forkIO $ rsource' $$+- conduitGet get =$ intake incoming
+                            -- Note that the Sink is impure and can be reused. Yay?
                             void . forkIO $ outflow outgoing $= conduitPut put $$ outSink
                             packetThread incoming outgoing
             finalizer

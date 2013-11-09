@@ -90,7 +90,7 @@ process (SlotSelection _) = return ()
 process (ClientSettings{}) = return ()
 
 -- | Plugin messages.
-process (PluginMessage channel bytes) = do
+process (PluginMessage channel bytes) =
     case channel of
         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
         "MC|PingHost" ->
