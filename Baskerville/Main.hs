@@ -26,7 +26,7 @@ intake chan = awaitForever worker
     where
     worker packet = liftIO . atomically $ writeTChan chan (Just packet)
 
-outflow :: TChan (Maybe Packet) -> Source IO Packet
+outflow :: TChan (Maybe OutgoingPacket) -> Source IO OutgoingPacket
 outflow chan = loop
     where
     loop = do
@@ -37,7 +37,7 @@ outflow chan = loop
                 yield packet
                 loop
 
-makeChans :: Server -> STM (TChan (Maybe Packet), TChan (Maybe Packet))
+makeChans :: Server -> STM (TChan (Maybe Packet), TChan (Maybe OutgoingPacket))
 makeChans core = do
     incoming <- newTChan
     outgoing <- newTChan
@@ -84,7 +84,7 @@ app tcore appdata = do
                             (incoming, outgoing) <- atomically $ makeChans server
                             void . forkIO $ rsource' $$+- conduitGet get =$ intake incoming
                             -- Note that the Sink is impure and can be reused. Yay?
-                            void . forkIO $ outflow outgoing $= conduitPut put $$ outSink
+                            void . forkIO $ outflow outgoing $= conduitPut putPacket $$ outSink
                             packetThread incoming outgoing
             finalizer
     putStrLn "Finished handling client!"

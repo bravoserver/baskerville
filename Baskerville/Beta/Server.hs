@@ -10,7 +10,7 @@ data ServerVersion = Version
     deriving (Eq, Show)
 
 instance ToJSON ServerVersion where
-    toJSON Version = object [ "name" .= ("Baskerville" :: String)
+    toJSON Version = object [ "name" .= ("1.7.2" :: String)
                             , "protocol" .= (4 :: Int) ]
 
 data ServerInfo = Info ServerVersion
@@ -19,8 +19,7 @@ data ServerInfo = Info ServerVersion
 instance ToJSON ServerInfo where
     toJSON (Info version) = let
         players = object [ "max"    .= (1000 :: Int)
-                         , "online" .= (0 :: Int)
-                         , "sample" .= ([] :: [Int]) ]
+                         , "online" .= (0 :: Int) ]
         description = object [ "text" .= ("Baskerville" :: String) ]
         in object [ "version"     .= version
                   , "players"     .= players

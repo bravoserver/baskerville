@@ -250,7 +250,36 @@ getUcs2 = do
     bytes <- getByteString (fromIntegral len * 2)
     return $ decodeUtf16BE bytes
 
--- | The packet datatype.
+-- | Put a packet, calculating the size and putting the header in front of it.
+--   Note that we assume that packet indices are always Word8. This is largely
+--   because there are no packets that are any other size; we don't really
+--   want to spend the extra effort manipulating Integers if there's no
+--   justification for it.
+putPacketHeader :: Word8 -> Put -> Put
+putPacketHeader index pput =
+    let packet = runPut pput
+        len    = toInteger $ 1 + BS.length packet + 1
+    in do
+        putInteger len
+        putWord8 index
+        putByteString packet
+
+-- | Outgoing packets.
+--   These packets can only be sent by servers.
+data OutgoingPacket = Join EID Mode Dimension Difficulty Word8 T.Text
+    deriving (Eq, Show)
+
+putPacket :: Putter OutgoingPacket
+putPacket (Join eid mode dimension difficulty players level) =
+    putPacketHeader 0x01 $ do
+        put eid
+        put mode
+        put dimension
+        put difficulty
+        put players
+        putText level
+
+-- | The (old) packet datatype.
 --   Packets are the basic unit of communication between MC clients and
 --   servers. They are atomic and self-contained. The first byte of a packet
 --   identifies the packet, and the payload is immediately inlined, with no

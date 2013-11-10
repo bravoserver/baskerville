@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Baskerville.Beta.Session where
 
@@ -25,11 +26,12 @@ makeLenses ''Session
 startingState :: Session
 startingState = Session True T.empty
 
-type Worker = RWST () [Packet] Session IO
+type Worker = RWST () [OutgoingPacket] Session IO
 
-packetThread :: TChan (Maybe Packet) -> TChan (Maybe Packet) -> IO ()
-packetThread incoming outgoing = loop startingState
+packetThread :: TChan (Maybe Packet) -> TChan (Maybe OutgoingPacket) -> IO ()
+packetThread incoming outgoing = greet >> loop startingState
     where
+    greet = atomically $ writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
     end = writeTChan outgoing Nothing
     loop s = do
         putStrLn "Start"
@@ -49,7 +51,7 @@ invalidate = ssValid .= False
 
 kick :: T.Text -> Worker ()
 kick s = do
-    tell [Error s]
+    -- tell [Error s]
     invalidate
 
 -- | Broadcast to everybody.
@@ -69,7 +71,7 @@ process :: Packet -> Worker ()
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client.
-process (Ping _) = tell [Ping 0]
+process (Ping _) = return () -- tell [Ping 0]
 
 -- | Handshake. Reply with a login.
 -- process (Handshake protocol nick _ _) =
