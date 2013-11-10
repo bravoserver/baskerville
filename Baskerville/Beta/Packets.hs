@@ -1,6 +1,7 @@
 module Baskerville.Beta.Packets where
 
 import Control.Applicative
+import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Bits
 import Data.Serialize
@@ -264,6 +265,28 @@ putPacketHeader index pput =
         putWord8 index
         putByteString packet
 
+-- | Incoming packets.
+--   These packets can only be sent by clients.
+data IncomingPacket = ClientSettings T.Text Word8 Word8 Difficulty Bool
+    deriving (Eq, Show)
+
+getPacket :: Get IncomingPacket
+getPacket = do
+    -- We really don't care about the length of the packet. Really.
+    void getInteger
+    header <- getInteger
+    case header of
+        0x15 -> do
+            locale <- getText
+            distance <- getWord8
+            chat <- getWord8
+            -- Unused value in the middle of the packet.
+            void getWord8
+            difficulty <- get
+            cape <- get
+            return $! ClientSettings locale distance chat difficulty cape
+        _    -> error $ "Can't decode packet with header " ++ show header
+
 -- | Outgoing packets.
 --   These packets can only be sent by servers.
 data OutgoingPacket = Join EID Mode Dimension Difficulty Word8 T.Text
@@ -351,7 +374,7 @@ data Packet = Ping Word32 -- 0x00
             -- | AlterStat Stat Word8 -- 0xC8
             | PlayerList T.Text Bool Word16 -- 0xC9
             -- | PlayerAbilities Invulnerable Flying Flyable InstaBreak -- 0xCA
-            | ClientSettings T.Text Word8 Word8 Difficulty Bool
+            -- | ClientSettings T.Text Word8 Word8 Difficulty Bool
             | PluginMessage T.Text BS.ByteString -- 0xFA
             | Poll
             | Error T.Text
@@ -400,13 +423,13 @@ instance Serialize Packet where
             0x0c -> OrientationPacket <$!> get <*> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
             0x10 -> SlotSelection <$!> get
-            0xcc -> do
-                locale <- getUcs2
-                distance <- getWord8
-                chat <- getWord8
-                difficulty <- get
-                cape <- get
-                return $! ClientSettings locale distance chat difficulty cape
+            -- 0xcc -> do
+            --     locale <- getUcs2
+            --     distance <- getWord8
+            --     chat <- getWord8
+            --     difficulty <- get
+            --     cape <- get
+            --     return $! ClientSettings locale distance chat difficulty cape
             0xfa -> do
                 channel <- getUcs2
                 len <- getWord16be

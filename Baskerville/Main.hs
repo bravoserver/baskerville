@@ -21,7 +21,7 @@ import Baskerville.Beta.Server
 import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
 
-intake :: TChan (Maybe Packet) -> Sink Packet IO ()
+intake :: TChan (Maybe IncomingPacket) -> Sink IncomingPacket IO ()
 intake chan = awaitForever worker
     where
     worker packet = liftIO . atomically $ writeTChan chan (Just packet)
@@ -37,7 +37,8 @@ outflow chan = loop
                 yield packet
                 loop
 
-makeChans :: Server -> STM (TChan (Maybe Packet), TChan (Maybe OutgoingPacket))
+makeChans :: Server
+          -> STM (TChan (Maybe IncomingPacket), TChan (Maybe OutgoingPacket))
 makeChans core = do
     incoming <- newTChan
     outgoing <- newTChan
@@ -82,7 +83,7 @@ app tcore appdata = do
                             -- Send a single Login packet.
                             CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
                             (incoming, outgoing) <- atomically $ makeChans server
-                            void . forkIO $ rsource' $$+- conduitGet get =$ intake incoming
+                            void . forkIO $ rsource' $$+- conduitGet getPacket =$ intake incoming
                             -- Note that the Sink is impure and can be reused. Yay?
                             void . forkIO $ outflow outgoing $= conduitPut putPacket $$ outSink
                             packetThread incoming outgoing

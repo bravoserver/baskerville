@@ -28,7 +28,9 @@ startingState = Session True T.empty
 
 type Worker = RWST () [OutgoingPacket] Session IO
 
-packetThread :: TChan (Maybe Packet) -> TChan (Maybe OutgoingPacket) -> IO ()
+packetThread :: TChan (Maybe IncomingPacket)
+             -> TChan (Maybe OutgoingPacket)
+             -> IO ()
 packetThread incoming outgoing = greet >> loop startingState
     where
     greet = atomically $ writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
@@ -67,11 +69,11 @@ kick s = do
 --   The type requires a Monad constraint in order to function correctly with
 --   StateT, but doesn't require IO in order to faciliate possible refactoring
 --   down the road.
-process :: Packet -> Worker ()
+process :: IncomingPacket -> Worker ()
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client.
-process (Ping _) = return () -- tell [Ping 0]
+-- process (Ping _) = return () -- tell [Ping 0]
 
 -- | Handshake. Reply with a login.
 -- process (Handshake protocol nick _ _) =
@@ -85,30 +87,30 @@ process (Ping _) = return () -- tell [Ping 0]
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(Chat _) = broadcast cp
 
-process (AirbornePacket _) = return ()
-process (PositionPacket{}) = return ()
-process (LocationPacket{}) = return ()
-process (SlotSelection _) = return ()
+-- process (AirbornePacket _) = return ()
+-- process (PositionPacket{}) = return ()
+-- process (LocationPacket{}) = return ()
+-- process (SlotSelection _) = return ()
 process (ClientSettings{}) = return ()
 
 -- | Plugin messages.
-process (PluginMessage channel bytes) =
-    case channel of
-        "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
-        "MC|PingHost" ->
-            -- Reply with a formatted error packet and close the connection.
-            kick pong
-        _ -> return ()
-    where
-    pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
+-- process (PluginMessage channel bytes) =
+--     case channel of
+--         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
+--         "MC|PingHost" ->
+--             -- Reply with a formatted error packet and close the connection.
+--             kick pong
+--         _ -> return ()
+--     where
+--     pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
 
 -- | A poll.
-process Poll = return ()
+-- process Poll = return ()
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
 --   disconnect them.
-process (Error _) = invalidate
+-- process (Error _) = invalidate
 
 -- | A packet which we don't handle. Kick the client, we're wasting time here.
 process _ = kick "I refuse to handle this packet."
