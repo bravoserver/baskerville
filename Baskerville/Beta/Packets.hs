@@ -268,6 +268,7 @@ putPacketHeader index pput =
 -- | Incoming packets.
 --   These packets can only be sent by clients.
 data IncomingPacket = ClientSettings T.Text Word8 Word8 Difficulty Bool
+                    | PluginMessage T.Text BS.ByteString
     deriving (Eq, Show)
 
 getPacket :: Get IncomingPacket
@@ -285,6 +286,11 @@ getPacket = do
             difficulty <- get
             cape <- get
             return $! ClientSettings locale distance chat difficulty cape
+        0x17 -> do
+            channel <- getText
+            len <- getWord16be
+            bytes <- getByteString $ fromIntegral len
+            return $! PluginMessage channel bytes
         _    -> error $ "Can't decode packet with header " ++ show header
 
 -- | Outgoing packets.
@@ -374,8 +380,6 @@ data Packet = Ping Word32 -- 0x00
             -- | AlterStat Stat Word8 -- 0xC8
             | PlayerList T.Text Bool Word16 -- 0xC9
             -- | PlayerAbilities Invulnerable Flying Flyable InstaBreak -- 0xCA
-            -- | ClientSettings T.Text Word8 Word8 Difficulty Bool
-            | PluginMessage T.Text BS.ByteString -- 0xFA
             | Poll
             | Error T.Text
             | InvalidPacket
@@ -423,18 +427,6 @@ instance Serialize Packet where
             0x0c -> OrientationPacket <$!> get <*> get
             0x0d -> LocationPacket <$!> get <*> get <*> get
             0x10 -> SlotSelection <$!> get
-            -- 0xcc -> do
-            --     locale <- getUcs2
-            --     distance <- getWord8
-            --     chat <- getWord8
-            --     difficulty <- get
-            --     cape <- get
-            --     return $! ClientSettings locale distance chat difficulty cape
-            0xfa -> do
-                channel <- getUcs2
-                len <- getWord16be
-                bytes <- getByteString $ fromIntegral len
-                return $! PluginMessage channel bytes
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,
             -- yo. ~ C.

@@ -94,15 +94,10 @@ process :: IncomingPacket -> Worker ()
 process (ClientSettings{}) = return ()
 
 -- | Plugin messages.
--- process (PluginMessage channel bytes) =
---     case channel of
---         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
---         "MC|PingHost" ->
---             -- Reply with a formatted error packet and close the connection.
---             kick pong
---         _ -> return ()
---     where
---     pong = T.intercalate "\NUL" ["§1", "78", "1.0", "Baskerville", "0", "1"]
+process (PluginMessage channel bytes) =
+    case channel of
+        "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
+        _          -> return ()
 
 -- | A poll.
 -- process Poll = return ()
