@@ -56,20 +56,12 @@ getStatus = do
         _    -> error $ "Won't get status header " ++ show header
 
 putStatus :: Putter StatusPacket
-putStatus (StatusResponse info) = let
+putStatus (StatusResponse info) = putPacketHeader 0x00 $ let
     info' = encode info
     infoLength = toInteger $ BSL.length info'
     in do
-    putInteger $ infoLength + 3
-    -- Packet header
-    putWord8 0x00
     -- Length and data
     putInteger infoLength
     putLazyByteString info'
-putStatus (StatusPing time) = do
-    -- Fixed length
-    putWord8 0x05
-    -- Packet header
-    putWord8 0x01
-    putWord64be time
+putStatus (StatusPing time) = putPacketHeader 0x01 $ putWord64be time
 putStatus sp = error $ "Won't put " ++ show sp

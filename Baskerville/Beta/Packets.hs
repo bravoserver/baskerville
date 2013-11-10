@@ -258,7 +258,7 @@ getUcs2 = do
 putPacketHeader :: Word8 -> Put -> Put
 putPacketHeader index pput =
     let packet = runPut pput
-        len    = toInteger $ 1 + BS.length packet + 1
+        len    = toInteger $ 1 + BS.length packet
     in do
         putInteger len
         putWord8 index
