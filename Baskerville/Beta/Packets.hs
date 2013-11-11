@@ -267,7 +267,9 @@ putPacketHeader index pput =
 
 -- | Incoming packets.
 --   These packets can only be sent by clients.
-data IncomingPacket = ClientSettings T.Text Word8 Word8 Difficulty Bool
+data IncomingPacket = ClientPosition Double Double Double Double Bool
+                    | ClientLocation Double Double Double Double Float Float Bool
+                    | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | PluginMessage T.Text BS.ByteString
     deriving (Eq, Show)
 
@@ -277,6 +279,22 @@ getPacket = do
     void getInteger
     header <- getInteger
     case header of
+        0x04 -> do
+            x <- getFloat64be
+            y <- getFloat64be
+            stance <- getFloat64be
+            z <- getFloat64be
+            grounded <- get
+            return $! ClientPosition x y stance z grounded
+        0x06 -> do
+            x <- getFloat64be
+            y <- getFloat64be
+            stance <- getFloat64be
+            z <- getFloat64be
+            yaw <- getFloat32be
+            pitch <- getFloat32be
+            grounded <- get
+            return $! ClientLocation x y stance z yaw pitch grounded
         0x15 -> do
             locale <- getText
             distance <- getWord8
@@ -324,9 +342,7 @@ data Packet = Ping Word32 -- 0x00
             | UpdateHealth Word16 Word16 Float -- 0x08
             | Respawn Dimension Difficulty Mode Word16 T.Text -- 0x09
             | AirbornePacket Airborne -- 0x0A
-            | PositionPacket Position Airborne -- 0x0B
             | OrientationPacket Orientation Airborne -- 0x0C
-            | LocationPacket Position Orientation Airborne -- 0x0D
             | Dig DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlock WorldDirection Word8 Word32 Word8 Slot -- 0x0F
             | SlotSelection Word16 -- 0x10
@@ -400,9 +416,7 @@ instance Serialize Packet where
     put (Time a t) = putWord8 0x04 >> put a >> put t
     put (Spawn c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
-    put (PositionPacket p a) = putWord8 0x0b >> put p >> put a
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
-    put (LocationPacket p o a) = putWord8 0x0d >> put p >> put o >> put a
     put (SendChunk c) = putWord8 0x33 >> put c
     put Poll = putWord8 0xfe
     put (Error t) = putWord8 0xff >> putUcs2 t
@@ -423,9 +437,7 @@ instance Serialize Packet where
             -- 0x04 S->C only
             0x06 -> Spawn <$!> get
             0x0a -> AirbornePacket <$!> get
-            0x0b -> PositionPacket <$!> get <*> get
             0x0c -> OrientationPacket <$!> get <*> get
-            0x0d -> LocationPacket <$!> get <*> get <*> get
             0x10 -> SlotSelection <$!> get
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,

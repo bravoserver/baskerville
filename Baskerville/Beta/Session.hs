@@ -88,8 +88,8 @@ process :: IncomingPacket -> Worker ()
 -- process cp@(Chat _) = broadcast cp
 
 -- process (AirbornePacket _) = return ()
--- process (PositionPacket{}) = return ()
--- process (LocationPacket{}) = return ()
+process (ClientPosition{}) = return ()
+process (ClientLocation{}) = return ()
 -- process (SlotSelection _) = return ()
 process (ClientSettings{}) = return ()
 
