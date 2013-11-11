@@ -267,7 +267,8 @@ putPacketHeader index pput =
 
 -- | Incoming packets.
 --   These packets can only be sent by clients.
-data IncomingPacket = ClientPosition Double Double Double Double Bool
+data IncomingPacket = Pong Word32
+                    | ClientPosition Double Double Double Double Bool
                     | ClientLocation Double Double Double Double Float Float Bool
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | PluginMessage T.Text BS.ByteString
@@ -279,6 +280,7 @@ getPacket = do
     void getInteger
     header <- getInteger
     case header of
+        0x00 -> Pong <$> getWord32be
         0x04 -> do
             x <- getFloat64be
             y <- getFloat64be
@@ -313,10 +315,12 @@ getPacket = do
 
 -- | Outgoing packets.
 --   These packets can only be sent by servers.
-data OutgoingPacket = Join EID Mode Dimension Difficulty Word8 T.Text
+data OutgoingPacket = Ping Word32
+                    | Join EID Mode Dimension Difficulty Word8 T.Text
     deriving (Eq, Show)
 
 putPacket :: Putter OutgoingPacket
+putPacket (Ping p) = putPacketHeader 0x00 $ putWord32be p
 putPacket (Join eid mode dimension difficulty players level) =
     putPacketHeader 0x01 $ do
         put eid
@@ -331,8 +335,7 @@ putPacket (Join eid mode dimension difficulty players level) =
 --   servers. They are atomic and self-contained. The first byte of a packet
 --   identifies the packet, and the payload is immediately inlined, with no
 --   delimiters. This makes packets difficult to parse.
-data Packet = Ping Word32 -- 0x00
-            | Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
+data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             -- | Handshake Word8 T.Text T.Text Word32 -- 0x02
             | Chat T.Text -- 0x03
             | Time Word64 Word64 -- 0x04
@@ -402,7 +405,6 @@ data Packet = Ping Word32 -- 0x00
     deriving (Eq, Show)
 
 instance Serialize Packet where
-    put (Ping pid) = putWord8 0x00 >> put pid
     put (Login a b c d e f) = do
         putWord8 0x01
         put a
@@ -425,7 +427,6 @@ instance Serialize Packet where
     get = do
         header <- getWord8
         case header of
-            0x00 -> Ping <$!> get
             -- 0x01 S->C only
             -- 0x02 -> do
             --     protocol <- getWord8

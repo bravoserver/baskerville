@@ -72,8 +72,9 @@ kick s = do
 process :: IncomingPacket -> Worker ()
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
---   client.
--- process (Ping _) = return () -- tell [Ping 0]
+--   client. We should actually just take this opportunity to update the
+--   latency numbers...
+process (Pong _) = return () -- tell [Ping p]
 
 -- | Handshake. Reply with a login.
 -- process (Handshake protocol nick _ _) =
@@ -98,9 +99,6 @@ process (PluginMessage channel bytes) =
     case channel of
         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
         _          -> return ()
-
--- | A poll.
--- process Poll = return ()
 
 -- | An error on the client side. They have no right to do this, but let them
 --   get away with it anyway. They clearly want to be disconnected, so
