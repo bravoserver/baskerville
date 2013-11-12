@@ -6,9 +6,13 @@ module Baskerville.Beta.Session where
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.RWS
+import qualified Data.Map as M
+import Data.Time
 import qualified Data.Text as T
+import Data.Word
 
 import Baskerville.Beta.Packets
 
@@ -16,6 +20,8 @@ showText :: Show a => a -> T.Text
 showText = T.pack . show
 
 data Session = Session { _ssValid :: Bool
+                       , _ssPings :: M.Map Word32 UTCTime
+                       , _ssCurrentPing :: Word32
                        , _ssNick :: T.Text
                        }
     deriving (Show)
@@ -24,7 +30,7 @@ makeLenses ''Session
 
 -- | The default starting state for a protocol.
 startingState :: Session
-startingState = Session True T.empty
+startingState = Session True M.empty 0 T.empty
 
 type Worker = RWST () [OutgoingPacket] Session IO
 
@@ -62,6 +68,26 @@ kick s = do
 --     chan <- lift $ use ssBroadcast
 --     liftIO . atomically $ writeTChan chan packet
 
+-- | Make a new ping.
+makePing :: Worker Word32
+makePing = do
+    time <- liftIO getCurrentTime
+    ssCurrentPing += 1
+    key <- use ssCurrentPing
+    ssPings . at key ?= time
+    return key
+
+-- | Receive a ping.
+handlePing :: Word32 -> Worker ()
+handlePing key = do
+    map <- use ssPings
+    case M.lookup key map of
+        Nothing    -> liftIO . putStrLn $ "Invalid ping!"
+        Just start -> do
+            end <- liftIO getCurrentTime
+            liftIO . putStrLn $ "Ping: " ++ show (diffUTCTime end start)
+            ssPings . at key .= Nothing
+
 -- | The main entry point for a protocol.
 --   Run this function over a packet and receive zero or more packets in
 --   reply. This function should be provided with state so that it can
@@ -74,7 +100,7 @@ process :: IncomingPacket -> Worker ()
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client. We should actually just take this opportunity to update the
 --   latency numbers...
-process (Pong _) = return () -- tell [Ping p]
+process (Pong pid) = handlePing pid
 
 -- | Handshake. Reply with a login.
 -- process (Handshake protocol nick _ _) =

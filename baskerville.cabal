@@ -64,6 +64,7 @@ Executable baskerville
                  , random-shuffle
                  , stm >= 2.3
                  , text
+                 , time
                  , transformers
                  , zlib
 
