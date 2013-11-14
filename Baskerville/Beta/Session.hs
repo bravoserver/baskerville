@@ -39,14 +39,14 @@ pingThread :: TChan (Maybe OutgoingPacket) -> TMVar Session -> IO ()
 pingThread chan tmc = loop
     where
     loop = do
+        -- The client appears to often die if pings are sent *immediately*
+        -- after login, so we'll send them *after* our timed delay.
+        threadDelay $ 10 * 1000 * 1000
         client <- atomically $ takeTMVar tmc
         (client', pid) <- makePing client
         atomically $ do
             putTMVar tmc client'
-            -- The client appears to occasionally vomit on these, so don't
-            -- send them for now...
-            -- writeTChan chan $ Just (Ping pid)
-        threadDelay $ 5 * 1000 * 1000
+            writeTChan chan $ Just (Ping pid)
         loop
 
 packetThread :: TChan (Maybe IncomingPacket)
@@ -63,18 +63,14 @@ packetThread incoming outgoing = do
     greet = writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
     end = writeTChan outgoing Nothing
     loop tmc = do
-        putStrLn "Start"
         mp <- atomically $ readTChan incoming
         case mp of
             Nothing -> atomically end
             Just packet -> do
-                putStrLn $ "Got a " ++ show packet ++ " packet!"
                 c <- atomically $ takeTMVar tmc
                 ((), c', w) <- runRWST (process packet) () c
-                print w
                 atomically $ putTMVar tmc c'
                 atomically $ forM_ w $ \p -> writeTChan outgoing (Just p)
-                putStrLn "End"
                 loop tmc
 
 invalidate :: Worker ()
@@ -103,10 +99,14 @@ handlePing :: Word32 -> Worker ()
 handlePing key = do
     m <- use ssPings
     case M.lookup key m of
-        Nothing    -> liftIO . putStrLn $ "Invalid ping!"
+        -- The client will often send pongs on its own, unsolicited. In those
+        -- cases, just ignore them; they are acting as keepalives and have no
+        -- useful latency information.
+        Nothing    -> return ()
         Just start -> do
-            end <- liftIO getCurrentTime
-            liftIO . putStrLn $ "Ping: " ++ show (diffUTCTime end start)
+            liftIO $ do
+                end <- getCurrentTime
+                putStrLn $ "Ping: " ++ show (diffUTCTime end start)
             ssPings . at key .= Nothing
 
 -- | The main entry point for a protocol.
