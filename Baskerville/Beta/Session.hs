@@ -3,6 +3,7 @@
 
 module Baskerville.Beta.Session where
 
+import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
@@ -30,29 +31,51 @@ makeLenses ''Session
 
 -- | The default starting state for a protocol.
 startingState :: Session
-startingState = Session True M.empty 0 T.empty
+startingState = Session True M.empty 1 T.empty
 
 type Worker = RWST () [OutgoingPacket] Session IO
+
+pingThread :: TChan (Maybe OutgoingPacket) -> TMVar Session -> IO ()
+pingThread chan tmc = loop
+    where
+    loop = do
+        client <- atomically $ takeTMVar tmc
+        (client', pid) <- makePing client
+        atomically $ do
+            putTMVar tmc client'
+            -- The client appears to occasionally vomit on these, so don't
+            -- send them for now...
+            -- writeTChan chan $ Just (Ping pid)
+        threadDelay $ 5 * 1000 * 1000
+        loop
 
 packetThread :: TChan (Maybe IncomingPacket)
              -> TChan (Maybe OutgoingPacket)
              -> IO ()
-packetThread incoming outgoing = greet >> loop startingState
+packetThread incoming outgoing = do
+    client <- atomically $ do
+        greet
+        newTMVar startingState
+    pingThreadId <- forkIO $ pingThread outgoing client
+    loop client
+    killThread pingThreadId
     where
-    greet = atomically $ writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
+    greet = writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
     end = writeTChan outgoing Nothing
-    loop s = do
+    loop tmc = do
         putStrLn "Start"
         mp <- atomically $ readTChan incoming
         case mp of
             Nothing -> atomically end
             Just packet -> do
                 putStrLn $ "Got a " ++ show packet ++ " packet!"
-                ((), s', w) <- runRWST (process packet) () s
+                c <- atomically $ takeTMVar tmc
+                ((), c', w) <- runRWST (process packet) () c
                 print w
+                atomically $ putTMVar tmc c'
                 atomically $ forM_ w $ \p -> writeTChan outgoing (Just p)
                 putStrLn "End"
-                loop s'
+                loop tmc
 
 invalidate :: Worker ()
 invalidate = ssValid .= False
@@ -69,19 +92,17 @@ kick s = do
 --     liftIO . atomically $ writeTChan chan packet
 
 -- | Make a new ping.
-makePing :: Worker Word32
-makePing = do
-    time <- liftIO getCurrentTime
-    ssCurrentPing += 1
-    key <- use ssCurrentPing
-    ssPings . at key ?= time
-    return key
+makePing :: Session -> IO (Session, Word32)
+makePing s = let key = s ^. ssCurrentPing in do
+    time <- getCurrentTime
+    let s' = s & ssPings . at key ?~ time & ssCurrentPing +~ 1
+    return (s', key)
 
 -- | Receive a ping.
 handlePing :: Word32 -> Worker ()
 handlePing key = do
-    map <- use ssPings
-    case M.lookup key map of
+    m <- use ssPings
+    case M.lookup key m of
         Nothing    -> liftIO . putStrLn $ "Invalid ping!"
         Just start -> do
             end <- liftIO getCurrentTime
