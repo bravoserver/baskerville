@@ -20,41 +20,36 @@ type ChunkArray = Array BCoord Word8
 newtype MicroChunk = MicroChunk { getMicroChunk :: ChunkArray }
     deriving (Eq, Show)
 
-data Chunk = Chunk { _cX, _cZ :: Int32, _cBlocks :: IM.IntMap MicroChunk }
+putMicroChunk :: Putter MicroChunk
+putMicroChunk _ = do
+    put $ BS.replicate 4096 0x02 -- block type
+    put $ BS.replicate 2048 0x00 -- block meta
+    put $ BS.replicate 2048 0xff -- block light
+    put $ BS.replicate 2048 0xff -- sky light
+    -- not sending additional array
+    -- not sending biome data
+
+newtype ChunkIx = ChunkIx { unChunkIx :: (Int32, Int32) }
+    deriving (Eq, Ix, Ord, Show)
+
+data Chunk = Chunk { _cIx :: ChunkIx, _cBlocks :: IM.IntMap MicroChunk }
     deriving (Eq, Show)
 
 makeLenses ''Chunk
 
-instance Serialize MicroChunk where
-    put _ = do
-        put $ BS.replicate 4096 0x02 -- block type
-        put $ BS.replicate 2048 0x00 -- block meta
-        put $ BS.replicate 2048 0xff -- block light
-        put $ BS.replicate 2048 0xff -- sky light
-        -- not sending additional array
-        -- not sending biome data
-
-    get = error "Can't get ye chunk!"
-
-instance Serialize Chunk where
-    put (Chunk x z blocks) = let
-        bitmap :: Word16
-        bitmap = foldr (\i j -> (1 `shiftL` i) .|. j) 0 (IM.keys blocks)
-        chunks = runPut $ mapM_ put $ IM.elems blocks
-        compressed = compress . LBS.fromChunks $ [chunks]
-        converter :: Int64 -> Word32
-        converter = fromIntegral
-        in do
-            put x
-            put z
-            put False -- whether biome data
-            put bitmap
-            put (0x0 :: Word16) -- additional bitmap
-            put $ converter $ LBS.length compressed
-            put (0x0 :: Word32) -- hole in packet
-            put compressed
-
-    get = error "Can't get ye chunk!"
+putChunk :: Putter Chunk
+putChunk (Chunk (ChunkIx (x, z)) blocks) = let
+    bitmap = foldr (\i j -> (1 `shiftL` i) .|. j) 0 (IM.keys blocks)
+    chunks = runPut $ mapM_ putMicroChunk $ IM.elems blocks
+    compressed = compress . LBS.fromChunks $ [chunks]
+    in do
+        put x
+        put z
+        put False -- whether biome data
+        putWord16be bitmap
+        putWord16be 0 -- additional bitmap
+        putWord32be . fromIntegral $ LBS.length compressed
+        put compressed
 
 -- | Create a new array with a given value.
 newFilledArray :: Word8 -> ChunkArray
@@ -67,8 +62,8 @@ newArray :: ChunkArray
 newArray = newFilledArray 0x0
 
 -- | Create a chunk at the given chunk coordinates.
-newChunk :: Int32 -> Int32 -> Chunk
-newChunk x z = Chunk x z IM.empty
+newChunk :: ChunkIx -> Chunk
+newChunk i = Chunk i IM.empty
 
 type Generator = Int -> Maybe MicroChunk -> Maybe MicroChunk
 

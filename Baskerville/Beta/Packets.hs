@@ -321,6 +321,7 @@ getPacket = do
 data OutgoingPacket = Ping Word32
                     | Join EID Mode Dimension Difficulty Word8 T.Text
                     | ServerLocation Double Double Double Float Float Bool
+                    | ChunkData Chunk
                     | SingleBlock Int32 Word8 Int32 Integer Word8
                     | Error T.Text
     deriving (Eq, Show)
@@ -343,6 +344,7 @@ putPacket (ServerLocation x y z yaw pitch grounded) =
         putFloat32be yaw
         putFloat32be pitch
         put grounded
+putPacket (ChunkData chunk) = putPacketHeader 0x21 $ putChunk chunk
 putPacket (SingleBlock x y z p s) = putPacketHeader 0x23 $ do
     put x
     put y
@@ -396,8 +398,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | EntityEffect EID Word8 Word8 Word16 -- 0x29
             | EndEntityEffect EID Word8 -- 0x2A
             | SetExperience Float Word16 Word16 -- 0x2B
-            | AllocChunk Word32 Word32 Bool -- 0x32
-            | SendChunk Chunk -- 0x33
             -- | MultiBlockChange Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
             -- | BlockAction Word32 Word16 Word32 BlockAction BlockAction -- 0x36
             -- | Explosion Double Double Double Float Word32 [Record] -- 0x3C
@@ -438,7 +438,6 @@ instance Serialize Packet where
     put (Spawn c) = putWord8 0x06 >> put c
     put (AirbornePacket a) = putWord8 0x0a >> put a
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
-    put (SendChunk c) = putWord8 0x33 >> put c
     put Poll = putWord8 0xfe
     put p = error $ "Won't put packet " ++ show p
 
