@@ -16,6 +16,8 @@ import qualified Data.Text as T
 import Data.Word
 
 import Baskerville.Beta.Packets
+import Baskerville.Chunk
+import Baskerville.Chunk.Generators
 
 showText :: Show a => a -> T.Text
 showText = T.pack . show
@@ -57,12 +59,13 @@ packetThread incoming outgoing = do
         greet
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
-    atomically $ forM_ [-64, 64] $ \x -> forM_ [-64, 64] $ \z ->
-        writeTChan outgoing (Just (SingleBlock x 0 z 0 0))
-    atomically $ writeTChan outgoing (Just (ServerLocation 0 64 0 0 0 True))
+    atomically $ forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z ->
+        writeTChan outgoing (Just (ChunkData (boringChunk (ChunkIx (x, z)))))
+    atomically $ writeTChan outgoing (Just (ServerLocation 0 130 0 0 0 True))
     loop client
     killThread pingThreadId
     where
+    boringChunk i = runGenerator boring $ newChunk i
     greet = writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
     end = writeTChan outgoing Nothing
     loop tmc = do

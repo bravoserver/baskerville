@@ -3,6 +3,7 @@
 module Baskerville.Chunk where
 
 import Codec.Compression.Zlib
+import Control.Monad
 import Control.Lens
 import Data.Array
 import Data.Bits
@@ -41,15 +42,17 @@ putChunk :: Putter Chunk
 putChunk (Chunk (ChunkIx (x, z)) blocks) = let
     bitmap = foldr (\i j -> (1 `shiftL` i) .|. j) 0 (IM.keys blocks)
     chunks = runPut $ mapM_ putMicroChunk $ IM.elems blocks
-    compressed = compress . LBS.fromChunks $ [chunks]
+    biomes = BS.pack $ replicate 256 0
+    compressed = compress . LBS.fromChunks $ [chunks, biomes]
+    len = fromIntegral $ LBS.length compressed
     in do
         put x
         put z
-        put False -- whether biome data
+        put True -- whether biome data
         putWord16be bitmap
         putWord16be 0 -- additional bitmap
-        putWord32be . fromIntegral $ LBS.length compressed
-        put compressed
+        putWord32be len
+        putLazyByteString compressed
 
 -- | Create a new array with a given value.
 newFilledArray :: Word8 -> ChunkArray
