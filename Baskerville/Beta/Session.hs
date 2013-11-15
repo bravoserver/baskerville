@@ -140,6 +140,7 @@ process (Pong pid) = handlePing pid
 -- process (AirbornePacket _) = return ()
 process (ClientPosition{}) = return ()
 process (ClientLocation{}) = return ()
+process (ClientAnimation{}) = return ()
 -- process (SlotSelection _) = return ()
 process (ClientSettings{}) = return ()
 

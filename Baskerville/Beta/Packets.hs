@@ -271,6 +271,7 @@ putPacketHeader index pput =
 data IncomingPacket = Pong Word32
                     | ClientPosition Double Double Double Double Bool
                     | ClientLocation Double Double Double Double Float Float Bool
+                    | ClientAnimation EID Animation
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | PluginMessage T.Text BS.ByteString
     deriving (Eq, Show)
@@ -298,6 +299,7 @@ getPacket = do
             pitch <- getFloat32be
             grounded <- get
             return $! ClientLocation x y stance z yaw pitch grounded
+        0x0a -> ClientAnimation <$> get <*> get
         0x15 -> do
             locale <- getText
             distance <- getWord8
