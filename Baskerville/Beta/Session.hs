@@ -37,6 +37,9 @@ startingState = Session True M.empty 1 T.empty
 
 type Worker = RWST () [OutgoingPacket] Session IO
 
+sendp :: TChan (Maybe OutgoingPacket) -> OutgoingPacket -> STM ()
+sendp chan p = writeTChan chan $ Just p
+
 pingThread :: TChan (Maybe OutgoingPacket) -> TMVar Session -> IO ()
 pingThread chan tmc = loop
     where
@@ -48,7 +51,7 @@ pingThread chan tmc = loop
         (client', pid) <- makePing client
         atomically $ do
             putTMVar tmc client'
-            writeTChan chan $ Just (Ping pid)
+            sendp chan $ Ping pid
         loop
 
 packetThread :: TChan (Maybe IncomingPacket)
@@ -59,14 +62,15 @@ packetThread incoming outgoing = do
         greet
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
-    atomically $ forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z ->
-        writeTChan outgoing (Just (ChunkData (boringChunk (ChunkIx (x, z)))))
-    atomically $ writeTChan outgoing (Just (ServerLocation 0 130 0 0 0 Aloft))
+    atomically $ do
+        forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z ->
+            sendp outgoing $ ChunkData (boringChunk (ChunkIx (x, z)))
+        sendp outgoing $ ServerLocation 0 130 0 0 0 Aloft
     loop client
     killThread pingThreadId
     where
     boringChunk i = runGenerator boring $ newChunk i
-    greet = writeTChan outgoing (Just (Join (EID 42) Creative Earth Peaceful 42 "default"))
+    greet = sendp outgoing $ Join (EID 42) Creative Earth Peaceful 42 "default"
     end = writeTChan outgoing Nothing
     loop tmc = do
         mp <- atomically $ readTChan incoming
@@ -76,7 +80,7 @@ packetThread incoming outgoing = do
                 c <- atomically $ takeTMVar tmc
                 ((), c', w) <- runRWST (process packet) () c
                 atomically $ putTMVar tmc c'
-                atomically $ forM_ w $ \p -> writeTChan outgoing (Just p)
+                atomically $ forM_ w $ sendp outgoing
                 loop tmc
 
 invalidate :: Worker ()
@@ -114,28 +118,15 @@ handlePing key = do
                 putStrLn $ "Ping: " ++ show (diffUTCTime end start)
             ssPings . at key .= Nothing
 
--- | The main entry point for a protocol.
+-- | The main entry point for a worker handling a client.
 --   Run this function over a packet and receive zero or more packets in
---   reply. This function should be provided with state so that it can
---   process consecutive packets.
---   The type requires a Monad constraint in order to function correctly with
---   StateT, but doesn't require IO in order to faciliate possible refactoring
---   down the road.
+--   reply, as well as updates to the client state.
 process :: IncomingPacket -> Worker ()
 
 -- | A ping or keep alive packet. Send one back after receiving one from the
 --   client. We should actually just take this opportunity to update the
 --   latency numbers...
 process (Pong pid) = handlePing pid
-
--- | Handshake. Reply with a login.
--- process (Handshake protocol nick _ _) =
---     if protocol /= 78
---         then kick $ T.append "Bad protocol " (showText protocol)
---         else do
---             ssNick .= nick
---             lift . putStrLn $ "Shook hands with " ++ T.unpack nick
---             tell [Login (EID 1) "default" Creative Earth Peaceful 10]
 
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(Chat _) = broadcast cp
@@ -152,6 +143,3 @@ process (PluginMessage channel bytes) =
     case channel of
         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
         _          -> kick $ T.concat ["Unknown channel ", channel]
-
--- | A packet which we don't handle. Kick the client, we're wasting time here.
-process _ = kick "I refuse to handle this packet."
