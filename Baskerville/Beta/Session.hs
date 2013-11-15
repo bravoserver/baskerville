@@ -76,10 +76,9 @@ packetThread incoming outgoing = do
 invalidate :: Worker ()
 invalidate = ssValid .= False
 
+-- | Kick the client and invalidate the session.
 kick :: T.Text -> Worker ()
-kick s = do
-    -- tell [Error s]
-    invalidate
+kick s = tell [Error s] >> invalidate
 
 -- | Broadcast to everybody.
 -- broadcast :: (MonadIO m) => Packet -> Conduit Packet (Session m) Packet
@@ -145,12 +144,7 @@ process (ClientSettings{}) = return ()
 process (PluginMessage channel bytes) =
     case channel of
         "MC|Brand" -> lift . putStrLn $ "Client branding: " ++ show bytes
-        _          -> return ()
-
--- | An error on the client side. They have no right to do this, but let them
---   get away with it anyway. They clearly want to be disconnected, so
---   disconnect them.
--- process (Error _) = invalidate
+        _          -> kick $ T.concat ["Unknown channel ", channel]
 
 -- | A packet which we don't handle. Kick the client, we're wasting time here.
 process _ = kick "I refuse to handle this packet."

@@ -317,6 +317,7 @@ getPacket = do
 --   These packets can only be sent by servers.
 data OutgoingPacket = Ping Word32
                     | Join EID Mode Dimension Difficulty Word8 T.Text
+                    | Error T.Text
     deriving (Eq, Show)
 
 putPacket :: Putter OutgoingPacket
@@ -329,6 +330,7 @@ putPacket (Join eid mode dimension difficulty players level) =
         put difficulty
         put players
         putText level
+putPacket (Error message) = putPacketHeader 0x40 $ putText message
 
 -- | The (old) packet datatype.
 --   Packets are the basic unit of communication between MC clients and
@@ -400,7 +402,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | PlayerList T.Text Bool Word16 -- 0xC9
             -- | PlayerAbilities Invulnerable Flying Flyable InstaBreak -- 0xCA
             | Poll
-            | Error T.Text
             | InvalidPacket
     deriving (Eq, Show)
 
@@ -421,7 +422,6 @@ instance Serialize Packet where
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
     put (SendChunk c) = putWord8 0x33 >> put c
     put Poll = putWord8 0xfe
-    put (Error t) = putWord8 0xff >> putUcs2 t
     put p = error $ "Won't put packet " ++ show p
 
     get = do
@@ -444,7 +444,6 @@ instance Serialize Packet where
             -- Nonetheless, I'm going to just not bother checking. Whatever,
             -- yo. ~ C.
             0xfe -> getWord8 >> return Poll
-            0xff -> Error <$!> getUcs2
             _    -> do
                 let s = "Can't decode packet " ++ show header
                 trace s $ return InvalidPacket
