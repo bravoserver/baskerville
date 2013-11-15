@@ -69,7 +69,7 @@ instance Serialize Difficulty where
             _    -> Peaceful
 
 data Airborne = Grounded | Aloft
-    deriving (Enum, Eq, Show)
+    deriving (Enum, Eq, Ord, Show)
 
 instance Serialize Airborne where
     put Grounded = putWord8 0x00
@@ -269,8 +269,9 @@ putPacketHeader index pput =
 -- | Incoming packets.
 --   These packets can only be sent by clients.
 data IncomingPacket = Pong Word32
-                    | ClientPosition Double Double Double Double Bool
-                    | ClientLocation Double Double Double Double Float Float Bool
+                    | ClientAirborne Airborne
+                    | ClientPosition Double Double Double Double Airborne
+                    | ClientLocation Double Double Double Double Float Float Airborne
                     | ClientAnimation EID Animation
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | PluginMessage T.Text BS.ByteString
@@ -283,6 +284,7 @@ getPacket = do
     header <- getInteger
     case header of
         0x00 -> Pong <$> getWord32be
+        0x03 -> ClientAirborne <$> get
         0x04 -> do
             x <- getFloat64be
             y <- getFloat64be
@@ -320,7 +322,7 @@ getPacket = do
 --   These packets can only be sent by servers.
 data OutgoingPacket = Ping Word32
                     | Join EID Mode Dimension Difficulty Word8 T.Text
-                    | ServerLocation Double Double Double Float Float Bool
+                    | ServerLocation Double Double Double Float Float Airborne
                     | ChunkData Chunk
                     | SingleBlock Int32 Word8 Int32 Integer Word8
                     | Error T.Text
@@ -367,7 +369,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | Use EID EID Bool -- 0x07
             | UpdateHealth Word16 Word16 Float -- 0x08
             | Respawn Dimension Difficulty Mode Word16 T.Text -- 0x09
-            | AirbornePacket Airborne -- 0x0A
             | OrientationPacket Orientation Airborne -- 0x0C
             | Dig DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlock WorldDirection Word8 Word32 Word8 Slot -- 0x0F
@@ -436,7 +437,6 @@ instance Serialize Packet where
     put (Chat t) = putWord8 0x03 >> putUcs2 t
     put (Time a t) = putWord8 0x04 >> put a >> put t
     put (Spawn c) = putWord8 0x06 >> put c
-    put (AirbornePacket a) = putWord8 0x0a >> put a
     put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
     put Poll = putWord8 0xfe
     put p = error $ "Won't put packet " ++ show p
@@ -454,7 +454,6 @@ instance Serialize Packet where
             0x03 -> Chat <$!> getUcs2
             -- 0x04 S->C only
             0x06 -> Spawn <$!> get
-            0x0a -> AirbornePacket <$!> get
             0x0c -> OrientationPacket <$!> get <*> get
             0x10 -> SlotSelection <$!> get
             -- 0xfe should always be followed by 0x01, not by anything.

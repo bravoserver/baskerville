@@ -61,7 +61,7 @@ packetThread incoming outgoing = do
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z ->
         writeTChan outgoing (Just (ChunkData (boringChunk (ChunkIx (x, z)))))
-    atomically $ writeTChan outgoing (Just (ServerLocation 0 130 0 0 0 True))
+    atomically $ writeTChan outgoing (Just (ServerLocation 0 130 0 0 0 Aloft))
     loop client
     killThread pingThreadId
     where
@@ -140,7 +140,7 @@ process (Pong pid) = handlePing pid
 -- | Chat packet. Broadcast it to everybody else.
 -- process cp@(Chat _) = broadcast cp
 
--- process (AirbornePacket _) = return ()
+process (ClientAirborne{}) = return ()
 process (ClientPosition{}) = return ()
 process (ClientLocation{}) = return ()
 process (ClientAnimation{}) = return ()
