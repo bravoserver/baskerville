@@ -4,6 +4,7 @@ import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Bits
+import Data.Int
 import Data.Serialize
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -317,6 +318,8 @@ getPacket = do
 --   These packets can only be sent by servers.
 data OutgoingPacket = Ping Word32
                     | Join EID Mode Dimension Difficulty Word8 T.Text
+                    | ServerLocation Double Double Double Float Float Bool
+                    | SingleBlock Int32 Word8 Int32 Integer Word8
                     | Error T.Text
     deriving (Eq, Show)
 
@@ -330,6 +333,20 @@ putPacket (Join eid mode dimension difficulty players level) =
         put difficulty
         put players
         putText level
+putPacket (ServerLocation x y z yaw pitch grounded) =
+    putPacketHeader 0x08 $ do
+        putFloat64be x
+        putFloat64be y
+        putFloat64be z
+        putFloat32be yaw
+        putFloat32be pitch
+        put grounded
+putPacket (SingleBlock x y z p s) = putPacketHeader 0x23 $ do
+    put x
+    put y
+    put z
+    putInteger p
+    put s
 putPacket (Error message) = putPacketHeader 0x40 $ putText message
 
 -- | The (old) packet datatype.
@@ -380,7 +397,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | AllocChunk Word32 Word32 Bool -- 0x32
             | SendChunk Chunk -- 0x33
             -- | MultiBlockChange Word32 Word32 Word16 Word32 MultiBlockData -- 0x34
-            | BlockChange Word32 Word8 Word32 Word8 Word8 -- 0x35
             -- | BlockAction Word32 Word16 Word32 BlockAction BlockAction -- 0x36
             -- | Explosion Double Double Double Float Word32 [Record] -- 0x3C
             -- | SoundParticleEffect Word32 Word32 Word8 Word32 EffectData -- 0x3D

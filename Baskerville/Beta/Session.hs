@@ -57,6 +57,9 @@ packetThread incoming outgoing = do
         greet
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
+    atomically $ forM_ [-64, 64] $ \x -> forM_ [-64, 64] $ \z ->
+        writeTChan outgoing (Just (SingleBlock x 0 z 0 0))
+    atomically $ writeTChan outgoing (Just (ServerLocation 0 64 0 0 0 True))
     loop client
     killThread pingThreadId
     where
