@@ -137,6 +137,7 @@ process (ClientOrientation{}) = return ()
 process (ClientLocation{}) = return ()
 process (SelectSlot{}) = return ()
 process (ClientAnimation{}) = return ()
+process (ChangeAbilities{}) = return ()
 process (ClientSettings{}) = return ()
 
 -- | Plugin messages.
