@@ -271,6 +271,7 @@ putPacketHeader index pput =
 data IncomingPacket = Pong Word32
                     | ClientAirborne Airborne
                     | ClientPosition Double Double Double Double Airborne
+                    | ClientOrientation Float Float Airborne
                     | ClientLocation Double Double Double Double Float Float Airborne
                     | ClientAnimation EID Animation
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
@@ -292,6 +293,11 @@ getPacket = do
             z <- getFloat64be
             grounded <- get
             return $! ClientPosition x y stance z grounded
+        0x05 -> do
+            yaw <- getFloat32be
+            pitch <- getFloat32be
+            grounded <- get
+            return $! ClientOrientation yaw pitch grounded
         0x06 -> do
             x <- getFloat64be
             y <- getFloat64be
@@ -369,7 +375,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | Use EID EID Bool -- 0x07
             | UpdateHealth Word16 Word16 Float -- 0x08
             | Respawn Dimension Difficulty Mode Word16 T.Text -- 0x09
-            | OrientationPacket Orientation Airborne -- 0x0C
             | Dig DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlock WorldDirection Word8 Word32 Word8 Slot -- 0x0F
             | SlotSelection Word16 -- 0x10
@@ -437,7 +442,6 @@ instance Serialize Packet where
     put (Chat t) = putWord8 0x03 >> putUcs2 t
     put (Time a t) = putWord8 0x04 >> put a >> put t
     put (Spawn c) = putWord8 0x06 >> put c
-    put (OrientationPacket o a) = putWord8 0x0c >> put o >> put a
     put Poll = putWord8 0xfe
     put p = error $ "Won't put packet " ++ show p
 
@@ -454,7 +458,6 @@ instance Serialize Packet where
             0x03 -> Chat <$!> getUcs2
             -- 0x04 S->C only
             0x06 -> Spawn <$!> get
-            0x0c -> OrientationPacket <$!> get <*> get
             0x10 -> SlotSelection <$!> get
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,
