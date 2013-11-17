@@ -273,6 +273,7 @@ data IncomingPacket = Pong Word32
                     | ClientPosition Double Double Double Double Airborne
                     | ClientOrientation Float Float Airborne
                     | ClientLocation Double Double Double Double Float Float Airborne
+                    | SelectSlot Word16
                     | ClientAnimation EID Animation
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | PluginMessage T.Text BS.ByteString
@@ -307,6 +308,7 @@ getPacket = do
             pitch <- getFloat32be
             grounded <- get
             return $! ClientLocation x y stance z yaw pitch grounded
+        0x09 -> SelectSlot <$> get
         0x0a -> ClientAnimation <$> get <*> get
         0x15 -> do
             locale <- getText
@@ -377,7 +379,6 @@ data Packet = Login EID T.Text Mode Dimension Difficulty Word8 -- 0x01
             | Respawn Dimension Difficulty Mode Word16 T.Text -- 0x09
             | Dig DiggingState Word32 Word8 Word32 Face -- 0x0E
             -- | PlaceBlock WorldDirection Word8 Word32 Word8 Slot -- 0x0F
-            | SlotSelection Word16 -- 0x10
             | UseBed EID Word8 Word32 Word8 Word32 -- 0x11
             | Animation EID Animation -- 0x12
             | Action EID Action -- 0x13
@@ -458,7 +459,6 @@ instance Serialize Packet where
             0x03 -> Chat <$!> getUcs2
             -- 0x04 S->C only
             0x06 -> Spawn <$!> get
-            0x10 -> SlotSelection <$!> get
             -- 0xfe should always be followed by 0x01, not by anything.
             -- Nonetheless, I'm going to just not bother checking. Whatever,
             -- yo. ~ C.

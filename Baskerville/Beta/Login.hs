@@ -4,11 +4,9 @@ module Baskerville.Beta.Login where
 
 import Control.Applicative
 import Control.Monad
-import Data.Aeson
 import qualified Data.ByteString as BS
 import Data.Serialize hiding (encode)
 import qualified Data.Text as T
-import Data.Word
 
 import Baskerville.Beta.Packets
 
