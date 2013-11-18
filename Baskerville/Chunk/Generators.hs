@@ -1,7 +1,7 @@
 module Baskerville.Chunk.Generators where
 
 import Data.Array.ST
-import Data.Int
+import Data.Word
 
 import Baskerville.Chunk
 import Baskerville.Coords

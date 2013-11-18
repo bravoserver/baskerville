@@ -3,7 +3,6 @@
 module Baskerville.Chunk where
 
 import Codec.Compression.Zlib
-import Control.Monad
 import Control.Lens
 import Data.Array
 import Data.Bits
@@ -22,8 +21,8 @@ newtype MicroChunk = MicroChunk { getMicroChunk :: ChunkArray }
     deriving (Eq, Show)
 
 putMicroChunk :: Putter MicroChunk
-putMicroChunk _ = do
-    put $ BS.replicate 4096 0x02 -- block type
+putMicroChunk (MicroChunk a) = do
+    put . BS.pack $ elems a
     put $ BS.replicate 2048 0x00 -- block meta
     put $ BS.replicate 2048 0xff -- block light
     put $ BS.replicate 2048 0xff -- sky light
@@ -56,9 +55,7 @@ putChunk (Chunk (ChunkIx (x, z)) blocks) = let
 
 -- | Create a new array with a given value.
 newFilledArray :: Word8 -> ChunkArray
-newFilledArray x = let
-    boundaries = (BCoord 0 0 0, BCoord 16 16 16)
-    in array boundaries [(i, x) | i <- range boundaries]
+newFilledArray x = listArray (BCoord 0 0 0, BCoord 15 15 15) $ repeat x
 
 -- | Create a zeroed-out chunk array.
 newArray :: ChunkArray
