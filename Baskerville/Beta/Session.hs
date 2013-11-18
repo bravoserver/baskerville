@@ -69,7 +69,7 @@ packetThread incoming outgoing = do
     loop client
     killThread pingThreadId
     where
-    boringChunk i = runGenerator boring $ newChunk i
+    boringChunk i = runGenerator stripes $ newChunk i
     greet = sendp outgoing $ Join (EID 42) Creative Earth Peaceful 42 "default"
     end = writeTChan outgoing Nothing
     loop tmc = do

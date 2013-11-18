@@ -11,7 +11,7 @@ plane :: (MArray a e m) => a BCoord e -> Word8 -> e -> m ()
 plane array y value = let
     as = repeat array
     vs = repeat value
-    ixs = range (BCoord 0 0 y, BCoord 15 15 y)
+    ixs = range (BCoord y 0 0, BCoord y 15 15)
     in sequence_ $ zipWith3 writeArray as ixs vs
 
 -- | Ensure that the chunk has safety features enabled.
@@ -34,3 +34,16 @@ boring :: Generator
 boring i _
     | i < 8 = Just . MicroChunk $ newFilledArray 0x2
     | otherwise = Nothing
+
+-- | Less boring stuff. Stripes of material.
+stripes :: Generator
+stripes i a
+    | i < 8 = Just . MicroChunk $ runSTArray $ do
+            a <- thaw $ newFilledArray 0x0
+            plane a 0x7 0x5
+            plane a 0x9 0x4
+            plane a 0xb 0x3
+            plane a 0xd 0x2
+            plane a 0xf 0x2
+            return a
+    | otherwise = a

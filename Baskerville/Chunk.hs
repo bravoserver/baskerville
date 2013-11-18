@@ -27,7 +27,6 @@ putMicroChunk (MicroChunk a) = do
     put $ BS.replicate 2048 0xff -- block light
     put $ BS.replicate 2048 0xff -- sky light
     -- not sending additional array
-    -- not sending biome data
 
 newtype ChunkIx = ChunkIx { unChunkIx :: (Int32, Int32) }
     deriving (Eq, Ix, Ord, Show)
@@ -41,7 +40,7 @@ putChunk :: Putter Chunk
 putChunk (Chunk (ChunkIx (x, z)) blocks) = let
     bitmap = foldr (\i j -> (1 `shiftL` i) .|. j) 0 (IM.keys blocks)
     chunks = runPut $ mapM_ putMicroChunk $ IM.elems blocks
-    biomes = BS.pack $ replicate 256 0
+    biomes = BS.replicate 256 0x00
     compressed = compress . LBS.fromChunks $ [chunks, biomes]
     len = fromIntegral $ LBS.length compressed
     in do
