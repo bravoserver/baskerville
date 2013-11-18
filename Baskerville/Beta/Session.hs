@@ -135,10 +135,13 @@ process (ClientAirborne{}) = return ()
 process (ClientPosition{}) = return ()
 process (ClientOrientation{}) = return ()
 process (ClientLocation{}) = return ()
+process (Dig{}) = return ()
 process (SelectSlot{}) = return ()
 process (ClientAnimation{}) = return ()
+process (CloseWindow{}) = return ()
 process (ChangeAbilities{}) = return ()
 process (ClientSettings{}) = return ()
+process (ClientStatus{}) = return ()
 
 -- | Plugin messages.
 process (PluginMessage channel bytes) =

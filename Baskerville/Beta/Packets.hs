@@ -11,6 +11,7 @@ import Data.Text.Encoding
 import Data.Word
 
 import Baskerville.Chunk
+import Baskerville.Coords
 
 -- From edwardk's stash-o-stuff.
 infixl 4 <$!>
@@ -78,8 +79,17 @@ instance Serialize Airborne where
             0x00 -> Grounded
             _    -> Aloft
 
-data DiggingState = Started | Digging | Stopped | Broken | Dropped | Shooting
+data DigStatus = StartDig
+               | CancelDig
+               | StopDig
+               | DropStack
+               | DropItem
+               | Shoot
     deriving (Enum, Eq, Show)
+
+instance Serialize DigStatus where
+    put = putWord8 . toEnum . fromEnum
+    get = fmap (toEnum . fromEnum) getWord8
 
 data Face = YMinus | YPlus | ZMinus | ZPlus | XMinus | XPlus
     deriving (Enum, Eq, Show)
@@ -179,6 +189,21 @@ instance Serialize PaintDirection where
             0x01 -> PNegX
             _    -> PNegZ
 
+data ActionStatus = Respawn | RequestStats | OpenInventory
+    deriving (Eq, Show)
+
+instance Serialize ActionStatus where
+    put Respawn = putWord8 0x00
+    put RequestStats = putWord8 0x01
+    put OpenInventory = putWord8 0x02
+    get = do
+        b <- getWord8
+        return $ case b of
+            0x00 -> Respawn
+            0x01 -> RequestStats
+            0x02 -> OpenInventory
+            _    -> error "Invalid value for action status"
+
 -- | Newtype for EIDs.
 newtype EID = EID { unEID :: Word32 }
     deriving (Eq, Show)
@@ -188,6 +213,13 @@ newtype EID = EID { unEID :: Word32 }
 instance Serialize EID where
     put (EID eid) = put eid
     get = EID <$!> get
+
+newtype WID = WID { unWID :: Word8 }
+    deriving (Eq, Show)
+
+instance Serialize WID where
+    put (WID wid) = put wid
+    get = WID <$!> get
 
 -- | Put an arbitrary-length integer.
 putInteger :: Putter Integer
@@ -251,10 +283,13 @@ data IncomingPacket = Pong Word32
                     | ClientPosition Double Double Double Double Airborne
                     | ClientOrientation Float Float Airborne
                     | ClientLocation Double Double Double Double Float Float Airborne
+                    | Dig DigStatus BCoord Face
                     | SelectSlot Word16
                     | ClientAnimation EID Animation
+                    | CloseWindow WID
                     | ChangeAbilities Word8 Float Float
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
+                    | ClientStatus ActionStatus
                     | PluginMessage T.Text BS.ByteString
     deriving (Eq, Show)
 
@@ -287,8 +322,10 @@ getPacket = do
             pitch <- getFloat32be
             grounded <- get
             return $! ClientLocation x y stance z yaw pitch grounded
+        0x07 -> Dig <$!> get <*> get <*> get
         0x09 -> SelectSlot <$> get
         0x0a -> ClientAnimation <$> get <*> get
+        0x0d -> CloseWindow <$> get
         0x13 -> ChangeAbilities <$> get <*> getFloat32be <*> getFloat32be
         0x15 -> do
             locale <- getText
@@ -299,6 +336,7 @@ getPacket = do
             difficulty <- get
             cape <- get
             return $! ClientSettings locale distance chat difficulty cape
+        0x16 -> ClientStatus <$> get
         0x17 -> do
             channel <- getText
             len <- getWord16be

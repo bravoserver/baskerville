@@ -7,7 +7,7 @@ import Baskerville.Chunk
 import Baskerville.Coords
 
 -- | Write a plane of data all at once.
-plane :: (MArray a e m) => a BCoord e -> Int32 -> e -> m ()
+plane :: (MArray a e m) => a BCoord e -> Word8 -> e -> m ()
 plane array y value = let
     as = repeat array
     vs = repeat value
