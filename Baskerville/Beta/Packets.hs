@@ -204,6 +204,28 @@ instance Serialize ActionStatus where
             0x02 -> OpenInventory
             _    -> error "Invalid value for action status"
 
+data Slot = EmptySlot | Slot Word16 Word8 Word16
+    deriving (Eq, Show)
+
+instance Serialize Slot where
+    put EmptySlot = putWord16be 0xffff
+    put (Slot primary count secondary) = do
+        putWord16be primary
+        putWord8 count
+        putWord16be secondary
+        -- Stub out NBT data for now.
+        putWord16be 0xffff
+    get = do
+        primary <- getWord16be
+        case primary of
+            0xffff -> return EmptySlot
+            _      -> do
+                count <- getWord8
+                secondary <- getWord16be
+                -- Hope there wasn't NBT data in there!
+                void getWord16be
+                return $! Slot primary count secondary
+
 -- | Newtype for EIDs.
 newtype EID = EID { unEID :: Word32 }
     deriving (Eq, Show)
@@ -287,6 +309,7 @@ data IncomingPacket = Pong Word32
                     | SelectSlot Word16
                     | ClientAnimation EID Animation
                     | CloseWindow WID
+                    | CreativeAction Word16 Slot
                     | ChangeAbilities Word8 Float Float
                     | ClientSettings T.Text Word8 Word8 Difficulty Bool
                     | ClientStatus ActionStatus
@@ -326,6 +349,7 @@ getPacket = do
         0x09 -> SelectSlot <$> get
         0x0a -> ClientAnimation <$> get <*> get
         0x0d -> CloseWindow <$> get
+        0x10 -> CreativeAction <$> getWord16be <*> get
         0x13 -> ChangeAbilities <$> get <*> getFloat32be <*> getFloat32be
         0x15 -> do
             locale <- getText
