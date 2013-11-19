@@ -20,6 +20,7 @@ import Baskerville.Beta.Packets
 import Baskerville.Beta.Server
 import Baskerville.Beta.Session
 import Baskerville.Beta.Shake
+import Baskerville.Utilities.Control
 
 intake :: TChan (Maybe IncomingPacket) -> Sink IncomingPacket IO ()
 intake chan = awaitForever worker
@@ -31,11 +32,9 @@ outflow chan = loop
     where
     loop = do
         mpacket <- liftIO . atomically $ readTChan chan
-        case mpacket of
-            Nothing     -> liftIO $ putStrLn "Finished writing!"
-            Just packet -> do
-                yield packet
-                loop
+        whenJust mpacket $ \packet -> do
+            yield packet
+            loop
 
 makeChans :: Server
           -> STM (TChan (Maybe IncomingPacket), TChan (Maybe OutgoingPacket))
@@ -64,30 +63,26 @@ app tcore appdata = do
     putStrLn "Handling client connection..."
     let outSink = appSink appdata
     (rsource, handshake) <- justOne getHandshake $ appSource appdata
-    case handshake of
-        Nothing -> return ()
-        Just (Handshake _ _ _ style) -> do
-            print handshake
-            (source, finalizer) <- unwrapResumable rsource
-            server <- readTVarIO tcore
-            case style of
-                NewStatus -> do
-                    let source' = source $= conduitGet getStatus
-                        dest    = conduitPut putStatus =$ appSink appdata
-                    source' $= statusConduit server $$ dest
-                NewLogin -> do
-                    (rsource', login) <- justOne getLogin source
-                    case login of
-                        Nothing -> return ()
-                        Just login' -> do
-                            -- Send a single Login packet.
-                            CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
-                            (incoming, outgoing) <- atomically $ makeChans server
-                            void . forkIO $ rsource' $$+- conduitGet getPacket =$ intake incoming
-                            -- Note that the Sink is impure and can be reused. Yay?
-                            void . forkIO $ outflow outgoing $= conduitPut putPacket $$ outSink
-                            packetThread incoming outgoing
-            finalizer
+    whenJust handshake $ \(Handshake _ _ _ style) -> do
+        print handshake
+        (source, finalizer) <- unwrapResumable rsource
+        server <- readTVarIO tcore
+        case style of
+            NewStatus -> do
+                let source' = source $= conduitGet getStatus
+                    dest    = conduitPut putStatus =$ appSink appdata
+                source' $= statusConduit server $$ dest
+            NewLogin -> do
+                (rsource', login) <- justOne getLogin source
+                whenJust login $ \login' -> do
+                    -- Send a single Login packet.
+                    CL.sourceList [loginPacket login'] $$ conduitPut putLogin =$ outSink
+                    (incoming, outgoing) <- atomically $ makeChans server
+                    void . forkIO $ rsource' $$+- conduitGet getPacket =$ intake incoming
+                    -- Note that the Sink is impure and can be reused. Yay?
+                    void . forkIO $ outflow outgoing $= conduitPut putPacket $$ outSink
+                    packetThread incoming outgoing
+        finalizer
     putStrLn "Finished handling client!"
 
 startServer :: TVar Server -> IO ()

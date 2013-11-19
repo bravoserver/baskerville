@@ -18,6 +18,7 @@ import Data.Word
 import Baskerville.Beta.Packets
 import Baskerville.Chunk
 import Baskerville.Chunk.Generators
+import Baskerville.Utilities.Control
 
 showText :: Show a => a -> T.Text
 showText = T.pack . show
@@ -107,16 +108,14 @@ makePing s = let key = s ^. ssCurrentPing in do
 handlePing :: Word32 -> Worker ()
 handlePing key = do
     m <- use ssPings
-    case M.lookup key m of
-        -- The client will often send pongs on its own, unsolicited. In those
-        -- cases, just ignore them; they are acting as keepalives and have no
-        -- useful latency information.
-        Nothing    -> return ()
-        Just start -> do
-            liftIO $ do
-                end <- getCurrentTime
-                putStrLn $ "Ping: " ++ show (diffUTCTime end start)
-            ssPings . at key .= Nothing
+    -- The client will often send pongs on its own, unsolicited. In those
+    -- cases, just ignore them; they are acting as keepalives and have no
+    -- useful latency information.
+    whenJust (M.lookup key m) $ \start -> do
+        liftIO $ do
+            end <- getCurrentTime
+            putStrLn $ "Ping: " ++ show (diffUTCTime end start)
+        ssPings . at key .= Nothing
 
 -- | The main entry point for a worker handling a client.
 --   Run this function over a packet and receive zero or more packets in
