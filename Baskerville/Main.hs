@@ -82,7 +82,7 @@ app tcore appdata = do
                     void . forkIO $ rsource' $$+- conduitGet getPacket =$ intake incoming
                     -- Note that the Sink is impure and can be reused. Yay?
                     void . forkIO $ outflow outgoing $= conduitPut putPacket $$ outSink
-                    packetThread incoming outgoing
+                    packetThread tcore incoming outgoing
         finalizer
     putStrLn "Finished handling client!"
 

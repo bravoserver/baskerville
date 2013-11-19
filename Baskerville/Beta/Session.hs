@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import Data.Word
 
 import Baskerville.Beta.Packets
+import Baskerville.Beta.Server
 import Baskerville.Chunk
 import Baskerville.Chunk.Generators
 import Baskerville.Utilities.Control
@@ -55,10 +56,11 @@ pingThread chan tmc = loop
             sendp chan $ Ping pid
         loop
 
-packetThread :: TChan (Maybe IncomingPacket)
+packetThread :: TMVar Server
+             -> TChan (Maybe IncomingPacket)
              -> TChan (Maybe OutgoingPacket)
              -> IO ()
-packetThread incoming outgoing = do
+packetThread tmserver incoming outgoing = do
     client <- atomically $ do
         greet
         newTMVar startingState
