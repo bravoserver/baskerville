@@ -56,6 +56,25 @@ pingThread chan tmc = loop
             sendp chan $ Ping pid
         loop
 
+modifyTMVar :: TMVar a -> (a -> a) -> STM ()
+modifyTMVar tmv f = do
+    v <- takeTMVar tmv
+    putTMVar tmv $ f v
+
+getOrCreateChunk :: TMVar Server
+                 -> (ChunkIx -> Chunk)
+                 -> ChunkIx
+                 -> STM Chunk
+getOrCreateChunk tmserver f ix = do
+    server <- readTMVar tmserver
+    case M.lookup ix (server ^. sWorld) of
+        -- Already in the World.
+        Just c  -> return c
+        -- Not yet there; create it, add it, and return it.
+        Nothing -> let c = f ix in do
+            modifyTMVar tmserver $ sWorld . at ix ?~ c
+            return c
+
 packetThread :: TMVar Server
              -> TChan (Maybe IncomingPacket)
              -> TChan (Maybe OutgoingPacket)
@@ -66,8 +85,9 @@ packetThread tmserver incoming outgoing = do
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ do
-        forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z ->
-            sendp outgoing $ ChunkData (boringChunk (ChunkIx (x, z)))
+        forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z -> do
+            chunk <- getOrCreateChunk tmserver boringChunk (ChunkIx (x, z))
+            sendp outgoing $ ChunkData chunk
         sendp outgoing $ ServerLocation 0 130 0 0 0 Aloft
     loop client
     killThread pingThreadId
