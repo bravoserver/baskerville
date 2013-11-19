@@ -5,6 +5,9 @@ module Baskerville.Beta.Server where
 
 import Control.Lens hiding ((.=))
 import Data.Aeson
+import qualified Data.Map as M
+
+import Baskerville.Chunk
 
 data ServerVersion = Version
     deriving (Eq, Show)
@@ -25,7 +28,8 @@ instance ToJSON ServerInfo where
                   , "players"     .= players
                   , "description" .= description ]
 
-data Server = Server { _sInfo :: ServerInfo }
-    deriving (Show)
+data Server = Server { _sInfo :: ServerInfo
+                     , _sWorld :: M.Map ChunkIx Chunk }
+    deriving (Eq, Show)
 
 makeLenses ''Server

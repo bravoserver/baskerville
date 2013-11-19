@@ -12,6 +12,7 @@ import Data.Conduit
 import Data.Conduit.Cereal
 import qualified Data.Conduit.List as CL
 import Data.Conduit.Network
+import qualified Data.Map as M
 import Data.Serialize
 import Network
 
@@ -58,7 +59,7 @@ justOne :: Get a -> Source IO BS.ByteString
         -> IO (ResumableSource IO BS.ByteString, Maybe a)
 justOne getter source = source $$+ conduitGet getter =$ CL.head
 
-app :: TVar Server -> Application IO
+app :: TMVar Server -> Application IO
 app tcore appdata = do
     putStrLn "Handling client connection..."
     let outSink = appSink appdata
@@ -66,7 +67,7 @@ app tcore appdata = do
     whenJust handshake $ \(Handshake _ _ _ style) -> do
         print handshake
         (source, finalizer) <- unwrapResumable rsource
-        server <- readTVarIO tcore
+        server <- atomically $ readTMVar tcore
         case style of
             NewStatus -> do
                 let source' = source $= conduitGet getStatus
@@ -85,11 +86,11 @@ app tcore appdata = do
         finalizer
     putStrLn "Finished handling client!"
 
-startServer :: TVar Server -> IO ()
+startServer :: TMVar Server -> IO ()
 startServer tcore = runTCPServer (serverSettings 25565 HostAny) $ app tcore
 
 main :: IO ()
 main = withSocketsDo $ do
     putStrLn "Starting up..."
-    core <- atomically . newTVar $ Server (Info Version)
+    core <- atomically . newTMVar $ Server (Info Version) M.empty
     startServer core
