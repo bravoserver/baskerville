@@ -12,6 +12,7 @@ import Data.Int
 import qualified Data.IntMap as IM
 import Data.Serialize
 import Data.Word
+import Debug.Trace
 
 import Baskerville.Coords
 
@@ -22,10 +23,10 @@ newtype MicroChunk = MicroChunk { getMicroChunk :: ChunkArray }
 
 putMicroChunk :: Putter MicroChunk
 putMicroChunk (MicroChunk a) = do
-    put . BS.pack $ elems a
-    put $ BS.replicate 2048 0x00 -- block meta
-    put $ BS.replicate 2048 0xff -- block light
-    put $ BS.replicate 2048 0xff -- sky light
+    putByteString . BS.pack $ elems a
+    putByteString $ BS.replicate 2048 0x00 -- block meta
+    putByteString $ BS.replicate 2048 0xff -- block light
+    putByteString $ BS.replicate 2048 0xff -- sky light
     -- not sending additional array
 
 newtype ChunkIx = ChunkIx { unChunkIx :: (Int32, Int32) }
@@ -38,7 +39,7 @@ makeLenses ''Chunk
 
 putChunk :: Putter Chunk
 putChunk (Chunk (ChunkIx (x, z)) blocks) = let
-    bitmap = foldr (\i j -> (1 `shiftL` i) .|. j) 0 (IM.keys blocks)
+    bitmap = foldr (.|.) 0 $ map (shiftL 1) $ IM.keys blocks
     chunks = runPut $ mapM_ putMicroChunk $ IM.elems blocks
     biomes = BS.replicate 256 0x00
     compressed = compress . LBS.fromChunks $ [chunks, biomes]

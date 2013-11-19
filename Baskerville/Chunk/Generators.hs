@@ -35,15 +35,18 @@ boring i _
     | i < 8 = Just . MicroChunk $ newFilledArray 0x2
     | otherwise = Nothing
 
+-- | Bedrock only.
+bedrock :: Generator
+bedrock 0 _ = Just . MicroChunk $ newFilledArray 0x1
+bedrock _ _ = Nothing
+
 -- | Less boring stuff. Stripes of material.
 stripes :: Generator
-stripes i a
-    | i < 8 = Just . MicroChunk $ runSTArray $ do
-            a <- thaw $ newFilledArray 0x0
-            plane a 0x7 0x5
-            plane a 0x9 0x4
-            plane a 0xb 0x3
-            plane a 0xd 0x2
-            plane a 0xf 0x2
-            return a
-    | otherwise = a
+stripes i _ = case i of
+    0x0 -> Just . MicroChunk $ newFilledArray 0x1
+    0x2 -> Just . MicroChunk $ newFilledArray 0x2
+    0x4 -> Just . MicroChunk $ newFilledArray 0x3
+    0x6 -> Just . MicroChunk $ newFilledArray 0x4
+    0x8 -> Just . MicroChunk $ newFilledArray 0x5
+    0xa -> Just . MicroChunk $ newFilledArray 0x6
+    _   -> Nothing
