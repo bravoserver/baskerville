@@ -306,6 +306,7 @@ data IncomingPacket = Pong Word32
                     | ClientOrientation Float Float Airborne
                     | ClientLocation Double Double Double Double Float Float Airborne
                     | Dig DigStatus BCoord Face
+                    | Build BCoord Face Slot
                     | SelectSlot Word16
                     | ClientAnimation EID Animation
                     | CloseWindow WID
@@ -346,6 +347,13 @@ getPacket = do
             grounded <- get
             return $! ClientLocation x y stance z yaw pitch grounded
         0x07 -> Dig <$!> get <*> get <*> get
+        0x08 -> do
+            bcoord <- get
+            face <- get
+            item <- get
+            -- Discard the crosshair positions.
+            replicateM_ 3 getWord8
+            return $! Build bcoord face item
         0x09 -> SelectSlot <$> get
         0x0a -> ClientAnimation <$> get <*> get
         0x0d -> CloseWindow <$> get
