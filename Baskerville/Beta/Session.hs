@@ -3,6 +3,7 @@
 
 module Baskerville.Beta.Session where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Lens
@@ -37,7 +38,7 @@ makeLenses ''Session
 startingState :: Session
 startingState = Session True M.empty 1 T.empty
 
-type Worker = RWST () [OutgoingPacket] Session IO
+type Worker = RWST () [OutgoingPacket] (Session, Server) IO
 
 sendp :: TChan (Maybe OutgoingPacket) -> OutgoingPacket -> STM ()
 sendp chan p = writeTChan chan $ Just p
@@ -85,7 +86,7 @@ packetThread tmserver incoming outgoing = do
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ do
-        forM_ [-16..16] $ \x -> forM_ [-16..16] $ \z -> do
+        forM_ [-4..4] $ \x -> forM_ [-4..4] $ \z -> do
             chunk <- getOrCreateChunk tmserver boringChunk (ChunkIx (x, z))
             sendp outgoing $ ChunkData chunk
         sendp outgoing $ ServerLocation 0 130 0 0 0 Aloft
@@ -100,14 +101,16 @@ packetThread tmserver incoming outgoing = do
         case mp of
             Nothing -> atomically end
             Just packet -> do
-                c <- atomically $ takeTMVar tmc
-                ((), c', w) <- runRWST (process packet) () c
-                atomically $ putTMVar tmc c'
+                c <- atomically $ (,) <$> takeTMVar tmc <*> takeTMVar tmserver
+                ((), (c', s'), w) <- runRWST (process packet) () c
+                atomically $ do
+                    putTMVar tmc c'
+                    putTMVar tmserver s'
                 atomically $ forM_ w $ sendp outgoing
                 loop tmc
 
 invalidate :: Worker ()
-invalidate = ssValid .= False
+invalidate = _1 . ssValid .= False
 
 -- | Kick the client and invalidate the session.
 kick :: T.Text -> Worker ()
@@ -129,7 +132,7 @@ makePing s = let key = s ^. ssCurrentPing in do
 -- | Receive a ping.
 handlePing :: Word32 -> Worker ()
 handlePing key = do
-    m <- use ssPings
+    m <- use $ _1 . ssPings
     -- The client will often send pongs on its own, unsolicited. In those
     -- cases, just ignore them; they are acting as keepalives and have no
     -- useful latency information.
@@ -137,7 +140,7 @@ handlePing key = do
         liftIO $ do
             end <- getCurrentTime
             putStrLn $ "Ping: " ++ show (diffUTCTime end start)
-        ssPings . at key .= Nothing
+        _1 . ssPings . at key .= Nothing
 
 -- | The main entry point for a worker handling a client.
 --   Run this function over a packet and receive zero or more packets in
@@ -156,7 +159,16 @@ process (ClientAirborne{}) = return ()
 process (ClientPosition{}) = return ()
 process (ClientOrientation{}) = return ()
 process (ClientLocation{}) = return ()
+
+process (Dig StartDig coord _) = let
+    (i, y, coord') = splitBCoord coord
+    in do
+    chunk <- use $ _2 . sWorld . at i
+    whenJust chunk $ \chunk' -> let
+        chunk'' = chunk' & cBlocks . ix y . mcArray . ix coord' .~ 0x0
+        in _2 . sWorld . at i ?= chunk''
 process (Dig{}) = return ()
+
 process (Build{}) = return ()
 process (SelectSlot{}) = return ()
 process (ClientAnimation{}) = return ()

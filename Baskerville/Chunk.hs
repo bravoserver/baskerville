@@ -18,8 +18,10 @@ import Baskerville.Coords
 
 type ChunkArray = Array BCoord Word8
 
-newtype MicroChunk = MicroChunk { getMicroChunk :: ChunkArray }
+newtype MicroChunk = MicroChunk { _mcArray :: ChunkArray }
     deriving (Eq, Show)
+
+makeLenses ''MicroChunk
 
 putMicroChunk :: Putter MicroChunk
 putMicroChunk (MicroChunk a) = do
@@ -31,6 +33,15 @@ putMicroChunk (MicroChunk a) = do
 
 newtype ChunkIx = ChunkIx { unChunkIx :: (Int32, Int32) }
     deriving (Eq, Ix, Ord, Show)
+
+-- | Split a BCoord into a ChunkIx and another BCoord which addresses the
+--   MicroChunk.
+splitBCoord :: BCoord -> (ChunkIx, Int, BCoord)
+splitBCoord coord = let
+    (bx, lx) = (coord ^. bcx) `divMod` 16
+    (by, ly) = (coord ^. bcy) `divMod` 16
+    (bz, lz) = (coord ^. bcz) `divMod` 16
+    in (ChunkIx (bx, bz), fromIntegral by, (BCoord ly lz lx))
 
 data Chunk = Chunk { _cIx :: ChunkIx, _cBlocks :: IM.IntMap MicroChunk }
     deriving (Eq, Show)
