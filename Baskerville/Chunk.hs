@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Baskerville.Chunk where
 
 import Codec.Compression.Zlib
+import Control.Applicative
 import Control.Lens
 import Data.Array
 import Data.Bits
@@ -72,6 +74,10 @@ newFilledArray x = listArray (BCoord 0 0 0, BCoord 15 15 15) $ repeat x
 newArray :: ChunkArray
 newArray = newFilledArray 0x0
 
+-- | The empty MicroChunk.
+emptyMC :: MicroChunk
+emptyMC = MicroChunk newArray
+
 -- | Create a chunk at the given chunk coordinates.
 newChunk :: ChunkIx -> Chunk
 newChunk i = Chunk i IM.empty
@@ -87,3 +93,9 @@ runGenerator g chunk = let
     f :: Int -> Chunk -> Chunk
     f i = cBlocks %~ IM.alter (g i) i
     in foldr f chunk [0..15]
+
+-- | A lens to go directly to a spot in a chunk.
+coordLens :: (Applicative f, Indexable BCoord p)
+          => BCoord -> p Word8 (f Word8) -> Chunk -> f Chunk
+coordLens bcoord = let (i, y, coord) = splitBCoord bcoord
+    in cBlocks . at y . non emptyMC . mcArray . ix coord

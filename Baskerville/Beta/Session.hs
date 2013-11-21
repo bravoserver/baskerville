@@ -161,12 +161,11 @@ process (ClientOrientation{}) = return ()
 process (ClientLocation{}) = return ()
 
 process (Dig StartDig coord _) = let
-    (i, y, coord') = splitBCoord coord
+    (i, _, _) = splitBCoord coord
     in do
     chunk <- use $ _2 . sWorld . at i
-    whenJust chunk $ \chunk' -> let
-        chunk'' = chunk' & cBlocks . ix y . mcArray . ix coord' .~ 0x0
-        in _2 . sWorld . at i ?= chunk''
+    whenJust chunk $ \chunk' ->
+        _2 . sWorld . at i ?= (chunk' & coordLens coord .~ 0x0)
 process (Dig{}) = return ()
 
 process (Build{}) = return ()
