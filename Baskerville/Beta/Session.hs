@@ -64,20 +64,16 @@ modifyTMVar tmv f = do
     v <- takeTMVar tmv
     putTMVar tmv $ f v
 
-getOrCreateChunk :: TMVar Server
+getOrCreateChunk :: Server
                  -> (ChunkIx -> Chunk)
                  -> ChunkIx
-                 -> STM Chunk
-getOrCreateChunk tmserver f i = do
-    server <- readTMVar tmserver
+                 -> (Server, Chunk)
+getOrCreateChunk server f i =
     case M.lookup i (server ^. sWorld) of
         -- Already in the World.
-        Just c  -> do
-            return c
+        Just c  -> trace "Already loaded" (server, c)
         -- Not yet there; create it, add it, and return it.
-        Nothing -> let c = f i in do
-            modifyTMVar tmserver $ sWorld . at i ?~ c
-            return c
+        Nothing -> let c = f i in trace "Created" (server & sWorld . at i ?~ c, c)
 
 offsetCoord :: Face -> BCoord -> BCoord
 offsetCoord YMinus = bcy -~ 1
@@ -98,8 +94,11 @@ packetThread tmserver incoming outgoing = do
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ do
         forM_ [-2..2] $ \x -> forM_ [-2..2] $ \z -> do
-            chunk <- getOrCreateChunk tmserver boringChunk (ChunkIx (x, z))
-            sendp outgoing $ ChunkData chunk
+            server <- takeTMVar tmserver
+            let (server', chunk) = getOrCreateChunk server boringChunk (ChunkIx (x, z))
+            chunk' <- return $ trace (if chunk == boringChunk (ChunkIx (x,z)) then "No" else "Yes") chunk
+            sendp outgoing $ ChunkData chunk'
+            putTMVar tmserver server'
         sendp outgoing $ ServerLocation 0 130 0 0 0 Aloft
     loop client
     killThread pingThreadId
