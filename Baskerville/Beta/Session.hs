@@ -15,11 +15,13 @@ import qualified Data.Map as M
 import Data.Time
 import qualified Data.Text as T
 import Data.Word
+import Debug.Trace
 
 import Baskerville.Beta.Packets
 import Baskerville.Beta.Server
 import Baskerville.Chunk
 import Baskerville.Chunk.Generators
+import Baskerville.Coords
 import Baskerville.Utilities.Control
 
 showText :: Show a => a -> T.Text
@@ -66,15 +68,24 @@ getOrCreateChunk :: TMVar Server
                  -> (ChunkIx -> Chunk)
                  -> ChunkIx
                  -> STM Chunk
-getOrCreateChunk tmserver f ix = do
+getOrCreateChunk tmserver f i = do
     server <- readTMVar tmserver
-    case M.lookup ix (server ^. sWorld) of
+    case M.lookup i (server ^. sWorld) of
         -- Already in the World.
-        Just c  -> return c
-        -- Not yet there; create it, add it, and return it.
-        Nothing -> let c = f ix in do
-            modifyTMVar tmserver $ sWorld . at ix ?~ c
+        Just c  -> do
             return c
+        -- Not yet there; create it, add it, and return it.
+        Nothing -> let c = f i in do
+            modifyTMVar tmserver $ sWorld . at i ?~ c
+            return c
+
+offsetCoord :: Face -> BCoord -> BCoord
+offsetCoord YMinus = bcy -~ 1
+offsetCoord YPlus  = bcy +~ 1
+offsetCoord ZMinus = bcz -~ 1
+offsetCoord ZPlus  = bcz +~ 1
+offsetCoord XMinus = bcx -~ 1
+offsetCoord XPlus  = bcx +~ 1
 
 packetThread :: TMVar Server
              -> TChan (Maybe IncomingPacket)
@@ -86,14 +97,14 @@ packetThread tmserver incoming outgoing = do
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ do
-        forM_ [-4..4] $ \x -> forM_ [-4..4] $ \z -> do
+        forM_ [-2..2] $ \x -> forM_ [-2..2] $ \z -> do
             chunk <- getOrCreateChunk tmserver boringChunk (ChunkIx (x, z))
             sendp outgoing $ ChunkData chunk
         sendp outgoing $ ServerLocation 0 130 0 0 0 Aloft
     loop client
     killThread pingThreadId
     where
-    boringChunk i = runGenerator stripes $ newChunk i
+    boringChunk i = runGenerator boring $ newChunk i
     greet = sendp outgoing $ Join (EID 42) Creative Earth Peaceful 42 "default"
     end = writeTChan outgoing Nothing
     loop tmc = do
@@ -163,12 +174,29 @@ process (ClientLocation{}) = return ()
 process (Dig StartDig coord _) = let
     (i, _, _) = splitBCoord coord
     in do
+    liftIO $ print coord
     chunk <- use $ _2 . sWorld . at i
-    whenJust chunk $ \chunk' ->
+    whenJust chunk $ \chunk' -> do
+        liftIO $ print (chunk' ^? coordLens coord)
         _2 . sWorld . at i ?= (chunk' & coordLens coord .~ 0x0)
 process (Dig{}) = return ()
 
+process (Build coord face (Slot block _ _)) = let
+    coord' = offsetCoord face coord
+    (i, _, _) = splitBCoord coord'
+    in do
+    liftIO $ print (coord, coord', face, block)
+    mchunk <- use $ _2. sWorld . at i
+    chunk <- case mchunk of
+        Nothing -> do
+            let c = runGenerator boring $ newChunk i
+            tell [ChunkData c]
+            return c
+        Just c  -> return c
+    let block' = (fromIntegral . toInteger) block
+    _2 . sWorld . at i ?= (chunk & coordLens coord' .~ block')
 process (Build{}) = return ()
+
 process (SelectSlot{}) = return ()
 process (ClientAnimation{}) = return ()
 process (ClientAction{}) = return ()

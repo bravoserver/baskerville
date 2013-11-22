@@ -32,7 +32,11 @@ safety i mmc = case mmc of
 -- | Put some boring things into the chunk.
 boring :: Generator
 boring i _
-    | i < 8 = Just . MicroChunk $ newFilledArray 0x2
+    | i < 8 = Just . MicroChunk $ runSTArray $ do
+        a <- thaw $ newFilledArray 0x0
+        plane a 0xf 0x2
+        plane a 0x0 0x4
+        return a
     | otherwise = Nothing
 
 -- | Bedrock only.
