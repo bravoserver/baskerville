@@ -309,6 +309,7 @@ data IncomingPacket = Pong Word32
                     | Build BCoord Face Slot
                     | SelectSlot Word16
                     | ClientAnimation EID Animation
+                    | ClientAction EID Action Word32
                     | CloseWindow WID
                     | CreativeAction Word16 Slot
                     | ChangeAbilities Word8 Float Float
@@ -356,6 +357,7 @@ getPacket = do
             return $! Build bcoord face item
         0x09 -> SelectSlot <$> get
         0x0a -> ClientAnimation <$> get <*> get
+        0x0b -> ClientAction <$> get <*> get <*> getWord32be
         0x0d -> CloseWindow <$> get
         0x10 -> CreativeAction <$> getWord16be <*> get
         0x13 -> ChangeAbilities <$> get <*> getFloat32be <*> getFloat32be
