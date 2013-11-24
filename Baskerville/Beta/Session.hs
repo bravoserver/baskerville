@@ -93,7 +93,7 @@ packetThread tmserver incoming outgoing = do
         newTMVar startingState
     pingThreadId <- forkIO $ pingThread outgoing client
     atomically $ do
-        forM_ [-2..2] $ \x -> forM_ [-2..2] $ \z -> do
+        forM_ [-1..1] $ \x -> forM_ [-1..1] $ \z -> do
             server <- takeTMVar tmserver
             let (server', chunk) = getOrCreateChunk server boringChunk (ChunkIx (x, z))
             chunk' <- return $ trace (if chunk == boringChunk (ChunkIx (x,z)) then "No" else "Yes") chunk
@@ -103,7 +103,7 @@ packetThread tmserver incoming outgoing = do
     loop client
     killThread pingThreadId
     where
-    boringChunk i = runGenerator boring $ newChunk i
+    boringChunk i = runGenerator bedrock $ newChunk i
     greet = sendp outgoing $ Join (EID 42) Creative Earth Peaceful 42 "default"
     end = writeTChan outgoing Nothing
     loop tmc = do
@@ -178,6 +178,7 @@ process (Dig StartDig coord _) = let
     whenJust chunk $ \chunk' -> do
         liftIO $ print (chunk' ^? coordLens coord)
         _2 . sWorld . at i ?= (chunk' & coordLens coord .~ 0x0)
+        tell [SingleBlock coord 0x0 0x0]
 process (Dig{}) = return ()
 
 process (Build coord face (Slot block _ _)) = let
@@ -188,12 +189,13 @@ process (Build coord face (Slot block _ _)) = let
     mchunk <- use $ _2. sWorld . at i
     chunk <- case mchunk of
         Nothing -> do
-            let c = runGenerator boring $ newChunk i
+            let c = runGenerator bedrock $ newChunk i
             tell [ChunkData c]
             return c
         Just c  -> return c
     let block' = (fromIntegral . toInteger) block
     _2 . sWorld . at i ?= (chunk & coordLens coord' .~ block')
+    tell [SingleBlock coord' (toInteger block) 0x0]
 process (Build{}) = return ()
 
 process (SelectSlot{}) = return ()

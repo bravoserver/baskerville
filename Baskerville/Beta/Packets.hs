@@ -384,7 +384,7 @@ data OutgoingPacket = Ping Word32
                     | Join EID Mode Dimension Difficulty Word8 T.Text
                     | ServerLocation Double Double Double Float Float Airborne
                     | ChunkData Chunk
-                    | SingleBlock Int32 Word8 Int32 Integer Word8
+                    | SingleBlock BCoord Integer Word8
                     | Error T.Text
     deriving (Eq, Show)
 
@@ -407,10 +407,8 @@ putPacket (ServerLocation x y z yaw pitch grounded) =
         putFloat32be pitch
         put grounded
 putPacket (ChunkData chunk) = putPacketHeader 0x21 $ putChunk chunk
-putPacket (SingleBlock x y z p s) = putPacketHeader 0x23 $ do
-    put x
-    put y
-    put z
+putPacket (SingleBlock coord p s) = putPacketHeader 0x23 $ do
+    put coord
     putInteger p
     put s
 putPacket (Error message) = putPacketHeader 0x40 $ putText message
